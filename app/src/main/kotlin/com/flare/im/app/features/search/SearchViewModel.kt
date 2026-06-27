@@ -21,7 +21,7 @@ data class SearchDraft(
     val includeRecalled: Boolean = false,
 )
 
-/** 搜索特性 ViewModel（对应 iOS `SearchViewModel`）：searchMessages / ByQuery / InConversation。 */
+/** 搜索特性 ViewModel：searchMessages / ByQuery / InConversation。 */
 class SearchViewModel(
     private val session: AppSession,
     private val environment: AppEnvironment,

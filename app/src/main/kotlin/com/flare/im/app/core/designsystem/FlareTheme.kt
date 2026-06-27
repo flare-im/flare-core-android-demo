@@ -17,7 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-// FlareTheme — Compose 设计系统，忠实移植 iOS `FlareDesign`（品牌锁定，关闭 dynamic-color）。
+// FlareTheme — Compose 设计系统（品牌锁定，关闭 dynamic-color）。
 // 颜色经 FlareColors（双主题），间距/圆角/字体经 FlareTokens（与主题无关）。
 // 视图通过 `FlareTheme.colors` / `FlareTheme.tokens` 读取，替代散落的魔法数字。
 
@@ -83,7 +83,7 @@ private val DarkFlareColors = FlareColors(
     isDark = true,
 )
 
-/** 运行时状态色调（对应 iOS RuntimeTone）。 */
+/** 运行时状态色调。 */
 enum class FlareTone { Neutral, Info, Success, Warning, Danger }
 
 fun FlareColors.color(tone: FlareTone): Color = when (tone) {
@@ -94,7 +94,7 @@ fun FlareColors.color(tone: FlareTone): Color = when (tone) {
     FlareTone.Danger -> danger
 }
 
-/** 间距 / 圆角 / 字体标尺 —— 与主题无关，移植 iOS 重定标后的 token。 */
+/** 间距 / 圆角 / 字体标尺 —— 与主题无关。 */
 @Immutable
 object FlareTokens {
     // Spacing：4pt 基准网格。
@@ -114,7 +114,7 @@ object FlareTokens {
     val pill = RoundedCornerShape(999.dp)
 }
 
-/** 字体阶梯（移植 iOS Typography；系统 Roboto，精确字号/字重）。 */
+/** 字体阶梯：系统 Roboto，精确字号/字重。 */
 @Immutable
 object FlareType {
     val largeTitle = TextStyle(fontSize = 25.sp, fontWeight = FontWeight.Black, lineHeight = 30.sp)
@@ -163,7 +163,7 @@ private fun materialTypography() = Typography(
 )
 
 /**
- * App 主题。`dark` 为 null 时跟随系统（对应 iOS ThemeChoice.system）。
+ * App 主题。`dark` 为 null 时跟随系统。
  * dynamic-color 关闭以保留 Flare 品牌紫。
  */
 @Composable

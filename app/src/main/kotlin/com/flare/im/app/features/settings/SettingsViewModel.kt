@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** 设置特性 ViewModel（对应 iOS `SettingsViewModel`）：主题/登录默认值 + 会话态 + 诊断/登出/释放。 */
+/** 设置特性 ViewModel：主题/登录默认值 + 会话态 + 诊断/登出/释放。 */
 class SettingsViewModel(
     private val session: AppSession,
     private val environment: AppEnvironment,

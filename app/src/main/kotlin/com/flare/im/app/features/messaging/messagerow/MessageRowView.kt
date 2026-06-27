@@ -41,7 +41,7 @@ internal fun MessageContent.str(vararg keys: String): String? =
     keys.firstNotNullOfOrNull { (data[it] as? String)?.takeIf { s -> s.isNotBlank() } }
 
 /** 一行消息：气泡 + 按 contentType 渲染（emoji/sticker 图、媒体/富卡片）+ 长按动作 + 发送状态。
- *  对应 iOS MessageRow/MessageBubbleViews+MessageMediaViews+MessageRichViews。 */
+ *  负责气泡、媒体与富内容消息渲染。 */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
@@ -72,7 +72,7 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
                 MessageContentView(message, outgoing, vm) { previewPath = it }
             }
             DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                // 快捷表情回应（对应 iOS reaction picker）。
+                // 快捷表情回应。
                 Row(
                     Modifier.padding(horizontal = tk.md, vertical = tk.xs),
                     horizontalArrangement = Arrangement.spacedBy(tk.sm),
@@ -109,7 +109,7 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
     previewPath?.let { p -> MediaPreviewDialog(p) { previewPath = null } }
 }
 
-/** 表情回应条（对应 iOS reactionStrip）：每个 emoji + 计数为可点 chip，点己有=取消、点他人=追加。 */
+/** 表情回应条：每个 emoji + 计数为可点 chip，点己有=取消、点他人=追加。 */
 @Composable
 private fun ReactionStrip(message: AppMessage, me: String?, vm: MessagingViewModel) {
     val reactions = message.core.reactions
@@ -225,7 +225,7 @@ private fun MessageImage(message: AppMessage, vm: MessagingViewModel, outgoing: 
     }
 }
 
-/** 视频消息：MediaMetadataRetriever 取首帧做缩略图（本地/远端），点击内联播放（对应 iOS VideoMessageView 的 AVPlayer）。 */
+/** 视频消息：MediaMetadataRetriever 取首帧做缩略图（本地/远端），点击内联播放。 */
 @Composable
 private fun MessageVideo(message: AppMessage, vm: MessagingViewModel, outgoing: Boolean) {
     val context = LocalContext.current
@@ -268,7 +268,7 @@ private fun MessageVideo(message: AppMessage, vm: MessagingViewModel, outgoing: 
     if (showPlayer) url?.let { VideoPlayerDialog(it) { showPlayer = false } }
 }
 
-/** 内联视频播放器（对应 iOS VideoPlayer/AVPlayer）：全屏 VideoView + MediaController（播放/暂停/拖动），点空白关闭。 */
+/** 内联视频播放器：全屏 VideoView + MediaController（播放/暂停/拖动），点空白关闭。 */
 @Composable
 private fun VideoPlayerDialog(url: String, onDismiss: () -> Unit) {
     androidx.compose.ui.window.Dialog(
@@ -292,7 +292,7 @@ private fun VideoPlayerDialog(url: String, onDismiss: () -> Unit) {
     }
 }
 
-/** 语音气泡（对应 iOS audio bubble）：▶/⏸ 播放（MediaPlayer.prepareAsync 不卡主线程）；远端音频经 resolveMediaUrl。 */
+/** 语音气泡：▶/⏸ 播放（MediaPlayer.prepareAsync 不卡主线程）；远端音频经 resolveMediaUrl。 */
 @Composable
 private fun AudioBubble(message: AppMessage, vm: MessagingViewModel, outgoing: Boolean) {
     val colors = FlareTheme.colors
@@ -327,7 +327,7 @@ private fun AudioBubble(message: AppMessage, vm: MessagingViewModel, outgoing: B
     }
 }
 
-/** 媒体全屏预览（对应 iOS MediaPreviewSheet）：双指缩放 + 拖动平移 + 双击放大复位；单击关闭。 */
+/** 媒体全屏预览：双指缩放 + 拖动平移 + 双击放大复位；单击关闭。 */
 @Composable
 private fun MediaPreviewDialog(path: String, onDismiss: () -> Unit) {
     androidx.compose.ui.window.Dialog(

@@ -7,7 +7,7 @@ import java.io.File
 
 /**
  * 平台桥：语音录制（MediaRecorder → m4a/AAC）。唯一接触 Android 录音 API 的地方
- * （对应 iOS Core/Platform PlatformAudioSession + ComposerAudioRecorder）。
+ *。
  */
 class AudioRecorder(private val context: Context) {
     private var recorder: MediaRecorder? = null

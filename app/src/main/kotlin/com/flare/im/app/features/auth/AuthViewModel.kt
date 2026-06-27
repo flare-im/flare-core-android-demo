@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-/** 登录特性 ViewModel（对应 iOS `AuthViewModel`）：登录草稿 + 校验 + submit→lifecycle.login。 */
+/** 登录特性 ViewModel：登录草稿 + 校验 + submit→lifecycle.login。 */
 class AuthViewModel(
     private val environment: AppEnvironment,
     private val scope: CoroutineScope,

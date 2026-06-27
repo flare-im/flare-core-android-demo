@@ -23,7 +23,7 @@ import kotlin.math.max
 /**
  * 平台桥：异步把本地图片（content:// URI / file:// / 纯文件路径）解码为 Compose 图像。
  * 在 IO 线程解码 + 按 maxPx 降采样（避免大图 OOM 与主线程 jank，smoothness 预算）。
- * 对应 iOS MessageMediaViews 的 localImage / AsyncImage。失败回退 fallback。
+ * 加载本地图片资源。失败回退 fallback。
  */
 @Composable
 fun FlareLocalImage(

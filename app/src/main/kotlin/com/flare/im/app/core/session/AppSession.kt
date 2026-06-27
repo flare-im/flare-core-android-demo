@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.update
 
 /**
  * 跨切面会话核心：唯一持有 `FlareImClient` 的地方（其余层经它拿门面）。
- * 镜像 iOS `AppSession`：拥有客户端生命周期 + 认证态 + 连接态 + 原始事件流，
+ * 拥有客户端生命周期 + 认证态 + 连接态 + 原始事件流，
  * 事件经 `onViewUpdate` / `onMessageSendFailed` 钩子路由给数据层/聊天层。
  */
 class AppSession {
@@ -54,7 +54,7 @@ class AppSession {
 
         progress("Initializing SDK")
         // Canonical initRequest wrapper `{ environment, sdkConfig }`. `dataUrl` is a URL
-        // (iOS passes `dataURL.absoluteString`); filesDir is absolute so this yields file:///data/...
+        // filesDir is absolute, so this yields file:///data/...
         val sdkConfig = draft.transportConfig() + mapOf(
             "dataUrl" to "file://$dataDir",
             "tenantId" to draft.tenantId,

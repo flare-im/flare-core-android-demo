@@ -27,7 +27,7 @@ import com.flare.im.app.core.platform.FlareAssetImage
 import com.flare.im.app.features.messaging.MessagingViewModel
 import com.flare.im.app.features.messaging.media.EmojiPresentation
 
-/** 输入区（对应 iOS Composer/ComposerView+ComposerControls）：文本 + 表情/贴纸面板 + 扩展构建菜单 +
+/** 输入区：文本 + 表情/贴纸面板 + 扩展构建菜单 +
  *  录音 + 图片选择 + 发送。自持状态，仅依赖 [MessagingViewModel]。 */
 @Composable
 fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
@@ -188,7 +188,7 @@ private fun convertFormField(key: String, value: String): Any? = when (key) {
     else -> value
 }
 
-/** 富消息构建表单（对应 iOS ComposerForms）：按 build op 收集字段 → buildAndSend(payload)。 */
+/** 富消息构建表单：按 build op 收集字段 → buildAndSend(payload)。 */
 @Composable
 private fun ComposerFormDialog(op: MessageBuildOp, vm: MessagingViewModel, onDismiss: () -> Unit) {
     val tk = FlareTheme.tokens

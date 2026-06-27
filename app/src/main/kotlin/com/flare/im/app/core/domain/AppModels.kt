@@ -4,7 +4,7 @@ import androidx.annotation.StringRes
 import com.flare.im.app.R
 import com.flare.im.app.core.designsystem.FlareTone
 
-/** 顶层区段（对应 iOS AppSection）。 */
+/** 顶层区段。 */
 enum class AppSection(@StringRes val titleRes: Int) {
     Conversations(R.string.nav_messages),
     Search(R.string.nav_search),
@@ -12,7 +12,7 @@ enum class AppSection(@StringRes val titleRes: Int) {
     Settings(R.string.nav_settings),
 }
 
-/** 会话列表过滤（对应 iOS ConversationFilter）。 */
+/** 会话列表过滤。 */
 enum class ConversationFilter(@StringRes val titleRes: Int) {
     All(R.string.filter_all),
     Unread(R.string.filter_unread),
@@ -23,14 +23,14 @@ enum class ConversationFilter(@StringRes val titleRes: Int) {
     Drafts(R.string.filter_drafts),
 }
 
-/** 主题选择（对应 iOS ThemeChoice）。null=跟随系统。 */
+/** 主题选择。null=跟随系统。 */
 enum class ThemeChoice { System, Light, Dark }
 
-/** 起会话类型（对应 iOS StartConversationKind）。 */
+/** 起会话类型。 */
 enum class StartConversationKind { Single, Group }
 
 /**
- * 运行时状态（对应 iOS RuntimeStatus，sealed 保留关联消息）。
+ * 运行时状态，sealed 保留关联消息。
  * productLabel/tone/icon 提供产品化呈现。
  */
 sealed interface RuntimeStatus {
@@ -66,14 +66,14 @@ sealed interface RuntimeStatus {
         }
 }
 
-/** 传输模式（对应 iOS LoginTransportMode；保留现有 AndroidTransportMode 行为）。 */
+/** 传输模式；保留现有 AndroidTransportMode 行为。 */
 enum class LoginTransportMode(val title: String) {
     WebSocket("WebSocket"),
     Quic("QUIC"),
     Race("QUIC Race"),
 }
 
-/** 登录默认值（与 iOS LoginDraft 等价，含 transportConfig 生成）。 */
+/** 登录默认值（与 LoginDraft 等价，含 transportConfig 生成）。 */
 data class LoginDraft(
     val userId: String = "android-demo",
     val transportMode: LoginTransportMode = LoginTransportMode.WebSocket,
@@ -135,7 +135,7 @@ data class LoginDraft(
     }
 }
 
-/** SDK Lab 操作记录（对应 iOS LabResult）。 */
+/** SDK Lab 操作记录。 */
 data class LabResult(
     val operation: String,
     val status: String,
@@ -143,7 +143,7 @@ data class LabResult(
     val timestampMs: Long = System.currentTimeMillis(),
 )
 
-/** 连接事件日志条目（对应 iOS EventLogEntry）。 */
+/** 连接事件日志条目。 */
 data class EventLogEntry(
     val domain: String,
     val name: String,

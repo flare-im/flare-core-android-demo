@@ -24,14 +24,14 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** 起会话草稿（对应 iOS StartConversationDraft）。 */
+/** 起会话草稿。 */
 data class StartConversationDraft(
     val peerUserId: String = "",
     val groupUserIds: String = "",
 )
 
 /**
- * 消息特性 ViewModel（对应 iOS `MessagingViewModel`）：会话列表 + 时间线 + 全部消息/会话操作。
+ * 消息特性 ViewModel：会话列表 + 时间线 + 全部消息/会话操作。
  * 持共享 session/repository/environment + weak lifecycle；经 scope 调 SDK（Map 形态 payload）。
  */
 class MessagingViewModel(
@@ -198,7 +198,7 @@ class MessagingViewModel(
 
     /**
      * 解析消息媒体到可显示 URL：本地路径直接用；远端经 `media.resolveMediaAccess(fileId)` 换签名 URL。
-     * 对应 iOS `resolveMediaDisplayURL`。失败兜底直链。
+     * 解析媒体展示地址。失败兜底直链。
      */
     suspend fun resolveMediaUrl(message: AppMessage): String? {
         val data = message.core.content?.data ?: return null

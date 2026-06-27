@@ -26,7 +26,7 @@ import com.flare.im.app.features.shell.EmptyState
 import com.flare.im.app.features.shell.StatusDot
 import com.flare.im.app.features.shell.statusLabel
 
-/** 会话列表屏（对应 iOS ConversationList/ConversationListView）：眉标头 + 过滤 + 列表 + 起会话。 */
+/** 会话列表屏：眉标头 + 过滤 + 列表 + 起会话。 */
 @Composable
 fun ConversationListScreen(store: FlareAppStore) {
     val colors = FlareTheme.colors

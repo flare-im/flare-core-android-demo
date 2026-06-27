@@ -16,7 +16,7 @@ import com.flare.im.model.common.enums.MessageContentType
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** Composer / SDK Lab 可触发的构建操作（对应 iOS MessageBuildOp）。 */
+/** Composer / SDK Lab 可触发的构建操作。 */
 enum class MessageBuildOp {
     CreateText, CreateEmoji, CreateSticker, CreateLocation, CreateCard, CreateRichDoc,
     CreateImage, CreateVideo, CreateAudio, CreateFile, CreateLinkCard, CreateMiniProgram,
@@ -26,7 +26,7 @@ enum class MessageBuildOp {
 
 /**
  * 把无类型 `payload` 经 SDK `messageBuilder` 门面构建为 typed Core message。
- * 镜像 iOS `MessageBuilder`（state-free；forward/quote 默认值经 `selectedMessages` 显式入参）。
+ * 无状态消息构建器；forward/quote 默认值经 `selectedMessages` 显式入参。
  */
 object MessageBuilder {
     suspend fun build(

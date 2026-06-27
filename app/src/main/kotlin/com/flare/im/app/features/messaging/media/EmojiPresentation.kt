@@ -1,12 +1,12 @@
 package com.flare.im.app.features.messaging.media
 
-/** 表情包 / 贴纸资产解析（镜像 iOS EmojiPresentation）。资产在 `assets/{emoji,stickers}/`。 */
+/** 表情包 / 贴纸资产解析。资产在 `assets/{emoji,stickers}/`。 */
 object EmojiPresentation {
     data class StickerAsset(val packageId: String, val stickerId: String) {
         val id: String get() = "$packageId/$stickerId"
     }
 
-    /** Composer 表情面板的内置表情包 key（与 iOS 一致）。 */
+    /** Composer 表情面板的内置表情包 key。 */
     val composerEmojiKeys = listOf(
         "shushing_face", "sleepy_face", "smirking_face", "angry_face", "exploding_head", "expressionless_face",
         "anxious_face_with_sweat", "enraged_face", "alien_monster", "blue_heart", "revolving_hearts", "alien",

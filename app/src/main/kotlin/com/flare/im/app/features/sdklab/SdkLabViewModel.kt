@@ -20,7 +20,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** SDK Lab 草稿输入（对应 iOS mediaLabDraft/capabilityLabDraft）。 */
+/** SDK Lab 草稿输入。 */
 data class LabDraft(
     val mediaFileId: String = "demo-file",
     val mediaFilePath: String = "",
@@ -34,8 +34,8 @@ data class LabDraft(
 )
 
 /**
- * SDK Lab 特性 ViewModel（对应 iOS `SdkLabViewModel`）：诊断 / 生命周期 / 会话·消息探针 /
- * 媒体中心 / 能力中心 / 事件 / presence / sync —— 穷尽长尾 op，达成与 iOS 同等覆盖。
+ * SDK Lab 特性 ViewModel：诊断 / 生命周期 / 会话·消息探针 /
+ * 媒体中心 / 能力中心 / 事件 / presence / sync —— 穷尽长尾 op，达成与 同等覆盖。
  * 每个探针把结果写入 environment.labResults。
  */
 class SdkLabViewModel(

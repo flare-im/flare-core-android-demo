@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
 /**
- * 共享 UI 状态（对应 iOS `AppEnvironment`）：选择态 / 过滤 / 区段 / 主题 / 忙碌 / 运行时状态 /
+ * 共享 UI 状态：选择态 / 过滤 / 区段 / 主题 / 忙碌 / 运行时状态 /
  * 错误 / Lab 结果 + 登录草稿。`run()` 统一包裹 busy + error + lab 日志。
  */
 class AppEnvironment {
@@ -54,7 +54,7 @@ class AppEnvironment {
         _labResults.update { (it + LabResult(operation, status, detail)).takeLast(200) }
     }
 
-    /** 统一执行包裹：busy 置位 + 清错 + 失败记 lastError/lab（对应 iOS environment.run）。 */
+    /** 统一执行包裹：busy 置位 + 清错 + 失败记 lastError/lab。 */
     suspend fun run(operation: String, showBusy: Boolean = true, body: suspend () -> Unit) {
         if (showBusy) _isBusy.value = true
         _lastError.value = null

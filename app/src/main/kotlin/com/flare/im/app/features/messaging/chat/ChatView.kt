@@ -32,7 +32,7 @@ import com.flare.im.app.features.shell.EmptyState
 import com.flare.im.app.features.shell.StatusDot
 import com.flare.im.app.features.shell.statusLabel
 
-/** 聊天屏（对应 iOS Chat/ChatView）：返回 + 标题头(状态副标题 + 会话内搜索) + 时间线 + 输入区(ComposerBar)。 */
+/** 聊天屏：返回 + 标题头(状态副标题 + 会话内搜索) + 时间线 + 输入区(ComposerBar)。 */
 @Composable
 fun ChatScreen(store: FlareAppStore) {
     val colors = FlareTheme.colors
@@ -71,7 +71,7 @@ fun ChatScreen(store: FlareAppStore) {
     if (searchOpen) InChatSearchSheet(store) { searchOpen = false }
 }
 
-/** 会话内消息搜索（对应 iOS ChatSearchSheet）：复用 SearchViewModel 的 conversation-scoped 搜索。 */
+/** 会话内消息搜索：复用 SearchViewModel 的 conversation-scoped 搜索。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InChatSearchSheet(store: FlareAppStore, onDismiss: () -> Unit) {

@@ -15,7 +15,7 @@ import androidx.compose.ui.unit.Dp
 
 /**
  * 平台桥：从 `assets/` 解码 webp（emoji/sticker）为 Compose 图像。
- * 唯一接触 Android 图形 API 的地方；视图层只调它（对应 iOS Core/Platform PlatformImage）。
+ * 唯一接触 Android 图形 API 的地方；视图层只调它。
  * 解码结果按 assetPath 记忆缓存，避免每帧重解码（smoothness）。
  */
 @Composable

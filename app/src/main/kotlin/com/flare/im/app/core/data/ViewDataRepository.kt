@@ -18,7 +18,7 @@ import kotlinx.coroutines.flow.update
 
 /**
  * 客户端「视图数据仓库」：把 core 拥有的 observable views 投影到本地 StateFlow。
- * 镜像 iOS `ViewDataRepository` 的职责，但**采用 re-fetch-on-signal**：onViewUpdated 触发时
+ * 维护视图数据投影，并**采用 re-fetch-on-signal**：onViewUpdated 触发时
  * 重新拉取权威 typed 快照（bootstrapHome / openConversationTimeline）替换 StateFlow，
  * 而非本地应用 delta（Kotlin SDK 未暴露 snapshot/delta 解码器；core 拥有顺序，client 只投影）。
  * SDK 的 local-first 存储使快照含乐观消息，故乐观态一致。

@@ -33,7 +33,7 @@ import com.flare.im.app.features.sdklab.SdkLabScreen
 import com.flare.im.app.features.search.SearchScreen
 import com.flare.im.app.features.settings.SettingsScreen
 
-/** App 根（对应 iOS FlareImRootView/RootWorkbenchView）：主题 + 登录路由 + 自适应 workbench 导航。 */
+/** App 根：主题 + 登录路由 + 自适应 workbench 导航。 */
 @Composable
 fun FlareApp(store: FlareAppStore) {
     val theme by store.environment.theme.collectAsState()

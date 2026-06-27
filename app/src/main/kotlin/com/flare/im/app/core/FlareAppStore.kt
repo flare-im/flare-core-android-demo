@@ -15,7 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * 组合根 / 协调器（对应 iOS `FlareAppStore`）：装配 Core（session/repository/environment），
+ * 组合根 / 协调器：装配 Core（session/repository/environment），
  * 持有跨切面登录/登出/释放编排（[AppLifecycle]），并把 session 的 onViewUpdate 接线到 repository。
  * 特性 ViewModel 在 Phase 2+ 装配进来。
  */
