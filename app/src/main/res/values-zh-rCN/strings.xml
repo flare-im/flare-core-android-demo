@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FlareIM</string>
+
+    <string name="nav_messages">消息</string>
+    <string name="nav_search">搜索</string>
+    <string name="nav_sdk_status">SDK 运行状态</string>
+    <string name="nav_settings">设置</string>
+
+    <string name="brand_eyebrow">FLARE CORE</string>
+    <string name="brand_name">flare IM</string>
+    <string name="brand_tagline">安全、快速的即时通讯</string>
+
+    <string name="status_online">在线</string>
+    <string name="status_offline">离线</string>
+    <string name="status_connecting">连接中</string>
+    <string name="status_not_connected">未连接</string>
+    <string name="status_needs_attention">需要处理</string>
+    <string name="status_unavailable">不可用</string>
+
+    <string name="filter_all">全部</string>
+    <string name="filter_unread">未读</string>
+    <string name="filter_mentions">@我</string>
+    <string name="filter_pinned">置顶</string>
+    <string name="filter_archived">归档</string>
+    <string name="filter_muted">免打扰</string>
+    <string name="filter_drafts">草稿</string>
+
+    <string name="action_cancel">取消</string>
+    <string name="action_send">发送</string>
+    <string name="action_open">打开</string>
+    <string name="action_done">完成</string>
+    <string name="action_more">更多</string>
+    <string name="action_logout">退出登录</string>
+    <string name="action_retry">重试</string>
+
+    <string name="conversations_title">消息</string>
+    <string name="conversations_search_hint">搜索会话</string>
+    <string name="conversations_subtitle">%1$d 会话 · %2$d 置顶 · %3$s</string>
+    <string name="conversations_empty_title">暂无会话</string>
+    <string name="conversations_empty_message">点击右上角加号打开一个会话</string>
+    <string name="conversations_start">发起会话</string>
+    <string name="conversation_no_messages">暂无消息</string>
+
+    <string name="chat_load_earlier">加载更早消息</string>
+    <string name="chat_empty_title">暂无消息</string>
+    <string name="chat_empty_message">发送第一条消息，或用下方扩展入口构建媒体、任务、投票等消息。</string>
+    <string name="chat_search_title">会话内搜索</string>
+    <string name="chat_search_hint">关键词</string>
+    <string name="chat_search_action">搜索</string>
+    <string name="chat_search_empty">输入关键词搜索本会话消息</string>
+    <string name="composer_hint">发送给 %1$s</string>
+    <string name="composer_form_send">发送</string>
+
+    <string name="auth_welcome">欢迎回来</string>
+    <string name="auth_enter_id">请输入您的用户 ID 完成登录</string>
+    <string name="auth_user_id">用户 ID</string>
+    <string name="auth_sign_in">立即登录</string>
+    <string name="auth_signing_in">登录中…</string>
+    <string name="auth_server_optional">服务器地址（可选）</string>
+
+    <string name="settings_appearance">外观</string>
+    <string name="settings_login_defaults">登录默认值</string>
+    <string name="settings_session">会话</string>
+    <string name="settings_refresh_diagnostics">刷新诊断</string>
+    <string name="settings_dispose">释放</string>
+    <string name="settings_media_cache">媒体缓存</string>
+    <string name="settings_cache_usage">占用：%1$s</string>
+    <string name="settings_cache_refresh">刷新</string>
+    <string name="settings_cache_clear">清空缓存</string>
+
+    <string name="lab_title">SDK 运行状态</string>
+    <string name="lab_no_ops">暂无实验操作</string>
+</resources>

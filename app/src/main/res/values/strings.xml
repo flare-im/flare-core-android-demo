@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">FlareIM</string>
+
+    <!-- Navigation / sections -->
+    <string name="nav_messages">Messages</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_sdk_status">SDK Status</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Brand / shell -->
+    <string name="brand_eyebrow">FLARE CORE</string>
+    <string name="brand_name">flare IM</string>
+    <string name="brand_tagline">Secure, fast instant messaging</string>
+
+    <!-- Connection / runtime status -->
+    <string name="status_online">Online</string>
+    <string name="status_offline">Offline</string>
+    <string name="status_connecting">Connecting</string>
+    <string name="status_not_connected">Not connected</string>
+    <string name="status_needs_attention">Needs attention</string>
+    <string name="status_unavailable">Unavailable</string>
+
+    <!-- Conversation filters -->
+    <string name="filter_all">All</string>
+    <string name="filter_unread">Unread</string>
+    <string name="filter_mentions">Mentions</string>
+    <string name="filter_pinned">Pinned</string>
+    <string name="filter_archived">Archived</string>
+    <string name="filter_muted">Muted</string>
+    <string name="filter_drafts">Drafts</string>
+
+    <!-- Common actions -->
+    <string name="action_cancel">Cancel</string>
+    <string name="action_send">Send</string>
+    <string name="action_open">Open</string>
+    <string name="action_done">Done</string>
+    <string name="action_more">More</string>
+    <string name="action_logout">Logout</string>
+    <string name="action_retry">Retry</string>
+
+    <!-- Conversation list -->
+    <string name="conversations_title">Messages</string>
+    <string name="conversations_search_hint">Search conversations</string>
+    <string name="conversations_subtitle">%1$d chats · %2$d pinned · %3$s</string>
+    <string name="conversations_empty_title">No conversations</string>
+    <string name="conversations_empty_message">Tap the plus button to open a conversation</string>
+    <string name="conversations_start">Start a conversation</string>
+    <string name="conversation_no_messages">No messages</string>
+
+    <!-- Chat -->
+    <string name="chat_load_earlier">Load earlier messages</string>
+    <string name="chat_empty_title">No messages</string>
+    <string name="chat_empty_message">Send the first message, or use the tools below to build media, tasks, polls, and more.</string>
+    <string name="chat_search_title">Search in conversation</string>
+    <string name="chat_search_hint">Keyword</string>
+    <string name="chat_search_action">Search</string>
+    <string name="chat_search_empty">Enter a keyword to search this conversation</string>
+    <string name="composer_hint">Send to %1$s</string>
+    <string name="composer_form_send">Send</string>
+
+    <!-- Auth -->
+    <string name="auth_welcome">Welcome back</string>
+    <string name="auth_enter_id">Enter your user ID to sign in</string>
+    <string name="auth_user_id">User ID</string>
+    <string name="auth_sign_in">Sign in</string>
+    <string name="auth_signing_in">Signing in…</string>
+    <string name="auth_server_optional">Server address (optional)</string>
+
+    <!-- Settings -->
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_login_defaults">Login Defaults</string>
+    <string name="settings_session">Session</string>
+    <string name="settings_refresh_diagnostics">Refresh diagnostics</string>
+    <string name="settings_dispose">Dispose</string>
+    <string name="settings_media_cache">Media cache</string>
+    <string name="settings_cache_usage">Usage: %1$s</string>
+    <string name="settings_cache_refresh">Refresh</string>
+    <string name="settings_cache_clear">Clear cache</string>
+
+    <!-- SDK Lab -->
+    <string name="lab_title">SDK Status</string>
+    <string name="lab_no_ops">No lab operations yet.</string>
+</resources>
