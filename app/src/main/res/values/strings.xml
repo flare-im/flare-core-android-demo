@@ -66,6 +66,10 @@
     <string name="auth_sign_in">Sign in</string>
     <string name="auth_signing_in">Signing in…</string>
     <string name="auth_server_optional">Server address (optional)</string>
+    <string name="auth_id_hint">Your user ID is assigned by the system and shown in account settings</string>
+    <string name="auth_error_title">Sign-in failed</string>
+    <string name="auth_footer">ID-only sign-in · secure connection enabled</string>
+    <string name="auth_user_id_placeholder">Enter user ID</string>
 
     <!-- Settings -->
     <string name="settings_appearance">Appearance</string>

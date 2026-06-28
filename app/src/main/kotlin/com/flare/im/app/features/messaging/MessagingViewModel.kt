@@ -258,6 +258,7 @@ class MessagingViewModel(
             when (action) {
                 "recall" -> sdk.messages.recallMessage(req)
                 "edit" -> sdk.messages.editTextByMessageId(req + ("text" to "Edited from Android example"))
+                "editRich" -> sdk.messages.editRichDocByMessageId(req + ("markdown" to "## Edited rich doc\n\n- **bold** point\n- _italic_ point"))
                 "deleteSelf" -> sdk.messages.deleteMessageForSelf(req)
                 "deleteEveryone" -> sdk.messages.deleteMessageForEveryone(req)
                 "react" -> sdk.messages.addReaction(req + ("reaction" to reaction))

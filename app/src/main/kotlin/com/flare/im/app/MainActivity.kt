@@ -3,6 +3,7 @@ package com.flare.im.app
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.flare.im.app.features.shell.FlareApp
 
@@ -13,6 +14,8 @@ import com.flare.im.app.features.shell.FlareApp
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // 全屏：内容铺到状态栏/导航栏之下（渐变品牌头满铺，对齐 iOS）。各屏自行用 inset padding。
+        enableEdgeToEdge()
         val dataDir = filesDir.absolutePath
         // The native core resolves its default data root from XDG/HOME conventions, which on
         // Android point under the read-only "/" mount. Anchor them to app-private storage so

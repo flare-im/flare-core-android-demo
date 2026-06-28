@@ -8,7 +8,31 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.automirrored.outlined.Article
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AlternateEmail
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.EmojiEmotions
+import androidx.compose.material.icons.outlined.FormatBold
+import androidx.compose.material.icons.automirrored.outlined.FormatListBulleted
+import androidx.compose.material.icons.outlined.FormatItalic
+import androidx.compose.material.icons.outlined.FormatListNumbered
+import androidx.compose.material.icons.outlined.FormatQuote
+import androidx.compose.material.icons.outlined.FormatStrikethrough
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.MicNone
+import androidx.compose.material.icons.outlined.Title
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -33,10 +57,23 @@ import com.flare.im.app.features.messaging.media.EmojiPresentation
 fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
     val colors = FlareTheme.colors
     val tk = FlareTheme.tokens
-    var composer by remember { mutableStateOf("") }
+    var composer by remember { mutableStateOf(TextFieldValue("")) }
+    var richMode by remember { mutableStateOf(false) }
     var builderMenu by remember { mutableStateOf(false) }
     var emojiPanel by remember { mutableStateOf(false) }
     var formOp by remember { mutableStateOf<MessageBuildOp?>(null) }
+
+    // richMode 下发送走 create_rich_doc（core 归一化 Markdown→docJson）；否则纯文本。
+    fun submitComposer() {
+        val text = composer.text
+        if (text.isBlank()) return
+        if (richMode) {
+            vm.buildAndSend(MessageBuildOp.CreateRichDoc, mapOf("markdown" to text))
+        } else {
+            vm.sendText(text)
+        }
+        composer = TextFieldValue("")
+    }
 
     val context = LocalContext.current
     val recorder = remember { AudioRecorder(context) }
@@ -49,60 +86,187 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
         if (granted) recording = recorder.start()
     }
 
-    Column {
+    // 版式对齐 Flutter message_composer（见 examples/COMPOSER-DESIGN-SPEC.md）：
+    // 栏底 background + 顶圆角 16；两行——上行白底圆角输入框（IME 发送，无独立发送键），
+    // 下行 6 槽均分图标工具栏（emoji/@/语音/图片/富文档/更多）。
+    Column(
+        Modifier.fillMaxWidth()
+            .clip(RoundedCornerShape(topStart = tk.lg, topEnd = tk.lg))
+            .background(colors.background),
+    ) {
         if (emojiPanel) EmojiStickerPanel(vm) { emojiPanel = false }
         formOp?.let { op -> ComposerFormDialog(op, vm) { formOp = null } }
-        Row(Modifier.fillMaxWidth().background(colors.surface).padding(tk.md), verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { emojiPanel = !emojiPanel }) { Text("☺", style = FlareTheme.type.title, color = colors.brand) }
-            IconButton(onClick = {
-                if (recording) {
-                    stopAndSend()
-                } else if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    recording = recorder.start()
-                } else {
-                    micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+        HorizontalDivider(thickness = 0.5.dp, color = colors.hairline)
+        Column(Modifier.fillMaxWidth().padding(horizontal = tk.sm, vertical = tk.sm)) {
+            // 第 1 行：白底圆角输入框（无描边；发送走 IME 发送键 / 回车）。
+            TextField(
+                value = composer,
+                onValueChange = { composer = it },
+                placeholder = {
+                    Text(stringResource(R.string.composer_hint, conversationTitle), color = colors.textSecondary)
+                },
+                textStyle = FlareTheme.type.body.copy(color = colors.textPrimary),
+                modifier = Modifier.fillMaxWidth().clip(tk.radiusSmall),
+                maxLines = 5,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { submitComposer() }),
+                colors = TextFieldDefaults.colors(
+                    focusedContainerColor = colors.surface,
+                    unfocusedContainerColor = colors.surface,
+                    disabledContainerColor = colors.surface,
+                    focusedIndicatorColor = Color.Transparent,
+                    unfocusedIndicatorColor = Color.Transparent,
+                    disabledIndicatorColor = Color.Transparent,
+                ),
+            )
+            // 富文本格式工具条（对齐 Flutter）：选区感知插入 Markdown 标记，由 core 归一化为 RichDoc v2。
+            if (richMode) {
+                ComposerRichFormatStrip(
+                    onApply = { composer = it(composer) },
+                    tint = colors.textSecondary,
+                )
+            }
+            Spacer(Modifier.height(tk.sm))
+            HorizontalDivider(thickness = 0.5.dp, color = colors.hairline)
+            // 第 2 行：6 槽均分图标工具栏。
+            Row(Modifier.fillMaxWidth().padding(top = tk.xs), verticalAlignment = Alignment.CenterVertically) {
+                ComposerToolbarIcon(Icons.Outlined.EmojiEmotions, "表情/贴纸", Modifier.weight(1f), colors.textSecondary) {
+                    emojiPanel = !emojiPanel
                 }
-            }) { Text(if (recording) "■" else "🎙", style = FlareTheme.type.title, color = if (recording) colors.danger else colors.brand) }
-            Box {
-                IconButton(onClick = { builderMenu = true }) { Text("+", style = FlareTheme.type.title, color = colors.brand) }
-                DropdownMenu(expanded = builderMenu, onDismissRequest = { builderMenu = false }) {
-                    DropdownMenuItem(text = { Text("Pick image") }, onClick = {
-                        builderMenu = false
-                        imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                    })
-                    listOf(
-                        "Image (demo)" to MessageBuildOp.CreateImage,
-                        "Video" to MessageBuildOp.CreateVideo,
-                        "Location" to MessageBuildOp.CreateLocation,
-                        "File" to MessageBuildOp.CreateFile,
-                        "Card" to MessageBuildOp.CreateCard,
-                        "Task" to MessageBuildOp.CreateTask,
-                        "Vote" to MessageBuildOp.CreateVote,
-                        "Schedule" to MessageBuildOp.CreateSchedule,
-                        "Rich doc" to MessageBuildOp.CreateRichDoc,
-                        "Link card" to MessageBuildOp.CreateLinkCard,
-                        "Sticker" to MessageBuildOp.CreateSticker,
-                    ).forEach { (label, op) ->
-                        DropdownMenuItem(text = { Text(label) }, onClick = {
+                ComposerToolbarIcon(Icons.Outlined.AlternateEmail, "@提及", Modifier.weight(1f), colors.textSecondary) {
+                    composer = composerInsert(composer, "@")
+                }
+                ComposerToolbarIcon(
+                    if (recording) Icons.Filled.Stop else Icons.Outlined.MicNone,
+                    "语音",
+                    Modifier.weight(1f),
+                    if (recording) colors.danger else colors.textSecondary,
+                ) {
+                    if (recording) {
+                        stopAndSend()
+                    } else if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                        recording = recorder.start()
+                    } else {
+                        micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+                    }
+                }
+                ComposerToolbarIcon(Icons.Outlined.Image, "图片", Modifier.weight(1f), colors.textSecondary) {
+                    imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                }
+                ComposerToolbarIcon(
+                    Icons.AutoMirrored.Outlined.Article,
+                    "富文本",
+                    Modifier.weight(1f),
+                    if (richMode) colors.brand else colors.textSecondary,
+                ) {
+                    richMode = !richMode
+                }
+                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    ComposerToolbarIcon(
+                        if (builderMenu) Icons.Outlined.Close else Icons.Outlined.Add,
+                        "更多功能",
+                        Modifier,
+                        colors.textSecondary,
+                    ) { builderMenu = true }
+                    DropdownMenu(expanded = builderMenu, onDismissRequest = { builderMenu = false }) {
+                        DropdownMenuItem(text = { Text("Pick image") }, onClick = {
                             builderMenu = false
-                            if (op in formOps) formOp = op else vm.buildAndSend(op)
+                            imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         })
+                        listOf(
+                            "Image (demo)" to MessageBuildOp.CreateImage,
+                            "Video" to MessageBuildOp.CreateVideo,
+                            "Location" to MessageBuildOp.CreateLocation,
+                            "File" to MessageBuildOp.CreateFile,
+                            "Card" to MessageBuildOp.CreateCard,
+                            "Task" to MessageBuildOp.CreateTask,
+                            "Vote" to MessageBuildOp.CreateVote,
+                            "Schedule" to MessageBuildOp.CreateSchedule,
+                            "Rich doc" to MessageBuildOp.CreateRichDoc,
+                            "Link card" to MessageBuildOp.CreateLinkCard,
+                            "Sticker" to MessageBuildOp.CreateSticker,
+                        ).forEach { (label, op) ->
+                            DropdownMenuItem(text = { Text(label) }, onClick = {
+                                builderMenu = false
+                                if (op in formOps) formOp = op else vm.buildAndSend(op)
+                            })
+                        }
                     }
                 }
             }
-            OutlinedTextField(
-                value = composer, onValueChange = { composer = it },
-                placeholder = { Text(stringResource(R.string.composer_hint, conversationTitle)) },
-                modifier = Modifier.weight(1f),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-            )
-            Spacer(Modifier.width(tk.sm))
-            IconButton(onClick = { if (composer.isNotBlank()) { vm.sendText(composer); composer = "" } }) {
-                Box(Modifier.size(40.dp).clip(CircleShape).background(colors.brand), Alignment.Center) {
-                    Text("→", color = colors.outgoingText, style = FlareTheme.type.headline)
-                }
-            }
         }
+    }
+}
+
+// ───── 富文本编辑：选区感知的 Markdown 标记插入（对齐 Flutter rich_text_composer_formatter）─────
+
+/** 在光标/选区处插入文本（有选区则替换）。 */
+private fun composerInsert(value: TextFieldValue, text: String): TextFieldValue {
+    val start = value.selection.min
+    val end = value.selection.max
+    val merged = value.text.substring(0, start) + text + value.text.substring(end)
+    return TextFieldValue(merged, TextRange(start + text.length))
+}
+
+/** 用 before/after 包裹选区（无选区则插入标记并把光标置于中间）。 */
+private fun composerWrap(value: TextFieldValue, before: String, after: String): TextFieldValue {
+    val start = value.selection.min
+    val end = value.selection.max
+    val selected = value.text.substring(start, end)
+    val merged = value.text.substring(0, start) + before + selected + after + value.text.substring(end)
+    val cursor = if (selected.isEmpty()) start + before.length else start + before.length + selected.length + after.length
+    return TextFieldValue(merged, TextRange(cursor))
+}
+
+/** 在当前行行首加 prefix（标题/引用/列表）。 */
+private fun composerPrefixLine(value: TextFieldValue, prefix: String): TextFieldValue {
+    val text = value.text
+    val cursor = value.selection.min
+    val lineStart = text.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
+    val merged = text.substring(0, lineStart) + prefix + text.substring(lineStart)
+    return TextFieldValue(merged, TextRange(cursor + prefix.length))
+}
+
+/** 富文本格式工具条：行内(粗/斜/删/码) + 块级(标题/引用/无序/有序)，应用为 Markdown 标记。 */
+@Composable
+private fun ComposerRichFormatStrip(
+    onApply: ((TextFieldValue) -> TextFieldValue) -> Unit,
+    tint: Color,
+) {
+    val tk = FlareTheme.tokens
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = tk.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ComposerFormatButton(Icons.Outlined.FormatBold, "粗体", tint) { onApply { composerWrap(it, "**", "**") } }
+        ComposerFormatButton(Icons.Outlined.FormatItalic, "斜体", tint) { onApply { composerWrap(it, "*", "*") } }
+        ComposerFormatButton(Icons.Outlined.FormatStrikethrough, "删除线", tint) { onApply { composerWrap(it, "~~", "~~") } }
+        ComposerFormatButton(Icons.Outlined.Code, "行内代码", tint) { onApply { composerWrap(it, "`", "`") } }
+        ComposerFormatButton(Icons.Outlined.Title, "标题", tint) { onApply { composerPrefixLine(it, "## ") } }
+        ComposerFormatButton(Icons.Outlined.FormatQuote, "引用", tint) { onApply { composerPrefixLine(it, "> ") } }
+        ComposerFormatButton(Icons.AutoMirrored.Outlined.FormatListBulleted, "无序列表", tint) { onApply { composerPrefixLine(it, "- ") } }
+        ComposerFormatButton(Icons.Outlined.FormatListNumbered, "有序列表", tint) { onApply { composerPrefixLine(it, "1. ") } }
+    }
+}
+
+@Composable
+private fun ComposerFormatButton(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit) {
+    IconButton(onClick = onClick) {
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
+    }
+}
+
+/** 工具栏单色描边图标按钮（命中区 ~48dp，图标 24，色 textSecondary/选中态自定）。 */
+@Composable
+private fun ComposerToolbarIcon(
+    icon: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    IconButton(onClick = onClick, modifier = modifier) {
+        Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(24.dp))
     }
 }
 
