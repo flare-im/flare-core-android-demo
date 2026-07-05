@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.automirrored.outlined.Article
+import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AlternateEmail
@@ -98,7 +99,7 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
         formOp?.let { op -> ComposerFormDialog(op, vm) { formOp = null } }
         HorizontalDivider(thickness = 0.5.dp, color = colors.hairline)
         Column(Modifier.fillMaxWidth().padding(horizontal = tk.sm, vertical = tk.sm)) {
-            // 第 1 行：白底圆角输入框（无描边；发送走 IME 发送键 / 回车）。
+            // 第 1 行：白底圆角输入框（无描边；发送走 IME 发送键 / 回车，硬件键盘可点发送图标）。
             TextField(
                 value = composer,
                 onValueChange = { composer = it },
@@ -110,6 +111,17 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
                 maxLines = 5,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = { submitComposer() }),
+                trailingIcon = {
+                    if (composer.text.isNotBlank()) {
+                        IconButton(onClick = { submitComposer() }) {
+                            Icon(
+                                Icons.AutoMirrored.Outlined.Send,
+                                contentDescription = "发送",
+                                tint = colors.brand,
+                            )
+                        }
+                    }
+                },
                 colors = TextFieldDefaults.colors(
                     focusedContainerColor = colors.surface,
                     unfocusedContainerColor = colors.surface,

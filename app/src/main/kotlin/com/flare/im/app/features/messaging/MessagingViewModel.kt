@@ -1,5 +1,6 @@
 package com.flare.im.app.features.messaging
 
+import android.util.Log
 import com.flare.im.api.FlareImClient
 import com.flare.im.app.core.data.AppEnvironment
 import com.flare.im.app.core.data.ViewDataRepository
@@ -41,7 +42,25 @@ class MessagingViewModel(
     private val scope: CoroutineScope,
 ) {
     private var lifecycle: AppLifecycle? = null
-    fun bind(lifecycle: AppLifecycle) { this.lifecycle = lifecycle }
+    fun bind(lifecycle: AppLifecycle) {
+        this.lifecycle = lifecycle
+        session.onViewUpdate = { update ->
+            scope.launch {
+                client?.let { repository.apply(it, update) }
+            }
+        }
+        session.onMessageReceived = { conversationId ->
+            scope.launch {
+                val sdk = client ?: return@launch
+                repository.refreshAfterMessageEvent(sdk, conversationId, "realtime")
+                if (environment.selectedConversationId.value == conversationId) {
+                    maxPositiveSeq(repository.messages(conversationId))?.let { readSeq ->
+                        sdk.conversations.markConversationRead(mapOf("conversationId" to conversationId, "readSeq" to readSeq))
+                    }
+                }
+            }
+        }
+    }
 
     private val client: FlareImClient? get() = session.client
 
@@ -184,6 +203,9 @@ class MessagingViewModel(
         } catch (error: Throwable) {
             _pendingMessageKeys.update { it - key }
             _failedMessageKeys.update { it + key }
+            val detail = error.message ?: error.toString()
+            environment.appendLab("message.send", "error", detail)
+            Log.e("FlareAndroidSmoke", "message.send failed", error)
             throw error
         }
     }

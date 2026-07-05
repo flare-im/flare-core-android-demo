@@ -140,6 +140,20 @@ class SdkLabViewModel(
         probe("presence.subscribeUserPresence") { it.presence.subscribeUserPresence(mapOf("userIds" to listOf(uid))) }
     }
 
+    // ---- User identity cache ----
+    fun runUpsertUserProfiles() {
+        val uid = currentUserId.value ?: "self"
+        probe("user.upsertUserProfiles") {
+            it.user.upsertUserProfiles(
+                mapOf(
+                    "profiles" to listOf(
+                        mapOf("userId" to uid, "nickname" to "SDK Lab 昵称", "avatarUrl" to ""),
+                    ),
+                ),
+            )
+        }
+    }
+
     // ---- Capabilities ----
     fun refreshCapabilities() {
         probe("capabilities.listCapabilities") { it.capabilities.listCapabilities(emptyMap()) }

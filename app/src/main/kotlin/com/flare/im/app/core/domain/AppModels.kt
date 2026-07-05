@@ -81,7 +81,7 @@ data class LoginDraft(
     val quicUrl: String = "quic://10.0.2.2:60052",
     val tlsCaCertPath: String = "",
     val tenantId: String = "0",
-    val tokenSecret: String = "flare-im-dev-secret",
+    val tokenSecret: String = com.flare.im.app.BuildConfig.DEFAULT_TOKEN_SECRET,
     val tokenIssuer: String = "flare-im-core",
     val tokenTtlSeconds: String = "3600",
     val dataSubfolder: String = "flare-core-android-app",

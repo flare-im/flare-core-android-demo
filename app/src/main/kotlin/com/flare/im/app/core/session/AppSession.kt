@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import org.json.JSONObject
 
 /**
  * 跨切面会话核心：唯一持有 `FlareImClient` 的地方（其余层经它拿门面）。
@@ -37,9 +38,12 @@ class AppSession {
 
     /** 事件路由钩子（由数据层/聊天层注入）。 */
     var onViewUpdate: ((ViewUpdate) -> Unit)? = null
+    var onMessageReceived: ((String) -> Unit)? = null
     var onMessageSendFailed: ((String) -> Unit)? = null
 
     private val subscriptions = mutableListOf<EventSubscription>()
+    private var lastDraft: LoginDraft? = null
+    private var nativeEventSubscription: Any? = null
 
     /** 创建 → 订阅 → init → 取 token → 登录。`progress` 回报阶段。 */
     suspend fun start(
@@ -51,41 +55,35 @@ class AppSession {
         val sdk = FlareCoreSdk.createClient()
 
         subscribeEvents(sdk)
+        subscribeNativeEvents(sdk)
 
         progress("Initializing SDK")
-        // Canonical initRequest wrapper `{ environment, sdkConfig }`. `dataUrl` is a URL
-        // filesDir is absolute, so this yields file:///data/...
-        val sdkConfig = draft.transportConfig() + mapOf(
-            "dataUrl" to "file://$dataDir",
-            "tenantId" to draft.tenantId,
-            "platform" to "android",
-            "runtime" to "compose-example",
-        )
-        val initConfig = mapOf(
-            "environment" to "production",
-            "sdkConfig" to sdkConfig,
-        )
-        sdk.init(initConfig)
+        // `dataUrl` is a URL; filesDir is absolute, so this yields file:///data/...
+        val sdkConfig = buildSdkConfig(draft, dataDir)
+        val storeConfigJson = JSONObject(sdkConfig).toString()
+        sdk.init(sdkConfig)
 
         progress("Generating core token")
         val ttl = draft.tokenTtlSeconds.toLongOrNull() ?: 86_400L
+        val userId = draft.userId.trim()
+        val tenantId = normalizedTenantId(draft)
         val token = sdk.generateCoreToken(
             CoreTokenRequest(
-                userId = draft.userId,
+                userId = userId,
                 secret = draft.tokenSecret,
                 issuer = draft.tokenIssuer,
                 ttlSecs = ttl,
-                deviceId = "android-example",
-                tenantId = draft.tenantId,
+                deviceId = ANDROID_EXAMPLE_DEVICE_ID,
+                tenantId = tenantId,
             ),
         ).token
 
         progress("Logging in")
         sdk.login(
             mapOf(
-                "userId" to draft.userId,
+                "userId" to userId,
                 "token" to token,
-                "storeConfigJson" to "{}",
+                "storeConfigJson" to storeConfigJson,
             ),
         )
 
@@ -97,14 +95,90 @@ class AppSession {
         }
 
         client = sdk
-        _currentUserId.value = draft.userId
+        _currentUserId.value = userId
         _isLoggedIn.value = true
+        lastDraft = draft.copy(userId = userId, tenantId = tenantId)
         refreshConnectionState()
         return sdk
     }
 
+    private fun buildSdkConfig(draft: LoginDraft, dataDir: String): Map<String, Any> =
+        draft.transportConfig() + mapOf(
+            "dataUrl" to "file://$dataDir",
+            "tenantId" to normalizedTenantId(draft),
+            "deviceId" to ANDROID_EXAMPLE_DEVICE_ID,
+            "platform" to "android",
+            "runtime" to "compose-example",
+        )
+
+    private fun normalizedTenantId(draft: LoginDraft): String = draft.tenantId.trim().ifEmpty { "0" }
+
+    /**
+     * 热启动本地半段：创建 → 订阅 → init → prepare(开本地库，不连网)。
+     * 本地会话即刻可读（会话列表/消息本地直出）；连接由 [connectInBackground] 补。
+     */
+    suspend fun resumeLocal(
+        draft: LoginDraft,
+        dataDir: String,
+        progress: (String) -> Unit,
+    ): FlareImClient {
+        progress("Creating Android SDK client")
+        val sdk = FlareCoreSdk.createClient()
+        subscribeEvents(sdk)
+        subscribeNativeEvents(sdk)
+
+        progress("Initializing SDK")
+        val sdkConfig = buildSdkConfig(draft, dataDir)
+        sdk.init(sdkConfig)
+
+        progress("Opening local store")
+        val userId = draft.userId.trim()
+        val tenantId = normalizedTenantId(draft)
+        sdk.prepare(
+            mapOf(
+                "userId" to userId,
+                "storeConfigJson" to JSONObject(sdkConfig).toString(),
+            ),
+        )
+
+        runCatching {
+            sdk.media.setMediaCacheRoot(mapOf("root" to "$dataDir/media-cache"))
+            sdk.media.setMediaCacheMaxBytes(mapOf("maxBytes" to MEDIA_CACHE_MAX_BYTES))
+        }
+
+        client = sdk
+        _currentUserId.value = userId
+        _isLoggedIn.value = true
+        lastDraft = draft.copy(userId = userId, tenantId = tenantId)
+        return sdk
+    }
+
+    /** 热启动网络半段：后台重签 token 并建连；失败保持本地视图可用。 */
+    suspend fun connectInBackground() {
+        val sdk = client ?: return
+        val draft = lastDraft ?: return
+        runCatching {
+            val ttl = draft.tokenTtlSeconds.toLongOrNull() ?: 86_400L
+            val userId = draft.userId.trim()
+            val tenantId = normalizedTenantId(draft)
+            val token = sdk.generateCoreToken(
+                CoreTokenRequest(
+                    userId = userId,
+                    secret = draft.tokenSecret,
+                    issuer = draft.tokenIssuer,
+                    ttlSecs = ttl,
+                    deviceId = ANDROID_EXAMPLE_DEVICE_ID,
+                    tenantId = tenantId,
+                ),
+            ).token
+            sdk.connect(mapOf("userId" to userId, "token" to token, "tenantId" to tenantId))
+        }
+        refreshConnectionState()
+    }
+
     suspend fun logout() {
         val sdk = client ?: error("SDK client is not initialized")
+        unsubscribeNativeEvents(sdk)
         sdk.logout()
         _isLoggedIn.value = false
         _currentUserId.value = null
@@ -113,6 +187,7 @@ class AppSession {
 
     suspend fun dispose() {
         val sdk = client ?: error("SDK client is not initialized")
+        unsubscribeNativeEvents(sdk)
         runCatching { sdk.dispose() }
         teardown()
     }
@@ -125,6 +200,21 @@ class AppSession {
 
     private fun subscribeEvents(sdk: FlareImClient) {
         subscriptions += sdk.events.onViewUpdated { update -> onViewUpdate?.invoke(update) }
+        subscriptions += sdk.events.onMessageReceived { event ->
+            event.message.conversationId.trim().takeIf { it.isNotEmpty() }?.let { conversationId ->
+                appendEvent("message", "received", conversationId)
+                onMessageReceived?.invoke(conversationId)
+            }
+        }
+        subscriptions += sdk.events.onMessageReceivedBatch { event ->
+            val conversationIds = event.messages
+                .mapNotNull { it.conversationId.trim().takeIf(String::isNotEmpty) }
+                .distinct()
+            if (conversationIds.isNotEmpty()) {
+                appendEvent("message", "received_batch", conversationIds.joinToString(","))
+                conversationIds.forEach { onMessageReceived?.invoke(it) }
+            }
+        }
         subscriptions += sdk.events.onConnectSuccess { event ->
             _connectionState.value = ConnectionState.CONNECTED
             appendEvent("connection", event.name.name, event.reason ?: "")
@@ -142,9 +232,22 @@ class AppSession {
         }
     }
 
+    private suspend fun subscribeNativeEvents(sdk: FlareImClient) {
+        nativeEventSubscription?.let { sdk.events.unsubscribe(mapOf("subscription" to it)) }
+        nativeEventSubscription = sdk.events.subscribeEvents(emptyMap())["subscription"]
+    }
+
+    private suspend fun unsubscribeNativeEvents(sdk: FlareImClient) {
+        nativeEventSubscription?.let { subscription ->
+            runCatching { sdk.events.unsubscribe(mapOf("subscription" to subscription)) }
+        }
+        nativeEventSubscription = null
+    }
+
     private fun teardown() {
         subscriptions.forEach { runCatching { it.unsubscribe() } }
         subscriptions.clear()
+        nativeEventSubscription = null
         client = null
         _isLoggedIn.value = false
         _currentUserId.value = null
@@ -156,6 +259,8 @@ class AppSession {
     }
 
     companion object {
+        private const val ANDROID_EXAMPLE_DEVICE_ID = "android-example"
+
         /** 媒体磁盘缓存默认上限 256MB（对齐主流 IM；可在设置页调整）。 */
         const val MEDIA_CACHE_MAX_BYTES = 256L * 1024 * 1024
     }

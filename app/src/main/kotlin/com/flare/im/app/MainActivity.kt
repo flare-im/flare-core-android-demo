@@ -9,7 +9,6 @@ import com.flare.im.app.features.shell.FlareApp
 
 /**
  * 单 Activity 宿主：装配 [FlareRootViewModel]（持组合根 FlareAppStore）并渲染 [FlareApp]。
- * 旧极简实现已被 features/shell 的 Compose workbench + 新 Core 架构取代。
  */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,8 +24,10 @@ class MainActivity : ComponentActivity() {
             android.system.Os.setenv("XDG_DATA_HOME", dataDir, true)
             android.system.Os.setenv("TMPDIR", cacheDir.absolutePath, true)
         }
+        val savedSessionStore = com.flare.im.app.core.session.SavedSessionStore(applicationContext)
         setContent {
-            val root: FlareRootViewModel = viewModel(factory = FlareRootViewModel.factory(dataDir))
+            val root: FlareRootViewModel =
+                viewModel(factory = FlareRootViewModel.factory(dataDir, savedSessionStore))
             FlareApp(root.store)
         }
     }

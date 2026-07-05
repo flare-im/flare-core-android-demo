@@ -6,6 +6,7 @@
 .cxx/
 .idea/
 .kotlin/
+.codegraph/
 captures/
 
 # Local machine config

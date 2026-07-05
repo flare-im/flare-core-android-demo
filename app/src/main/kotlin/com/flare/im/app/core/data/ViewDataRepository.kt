@@ -78,6 +78,14 @@ class ViewDataRepository {
         refetchTimeline(client, conversationId)
     }
 
+    suspend fun refreshAfterMessageEvent(client: FlareImClient, conversationId: String, reason: String) {
+        refetchConversationList(client)
+        if (activeTimelineConversationId == conversationId) {
+            refetchTimeline(client, conversationId)
+        }
+        onLog?.invoke("message.received", "$reason: $conversationId")
+    }
+
     /** 乐观插入：发送前立即把本地已构建的消息投影到时间线（flare-im-spec: optimistic always）。
      *  随后 ack re-fetch 用权威快照对账（替换 serverId/seq）。 */
     fun insertOptimistic(message: AppMessage) {
