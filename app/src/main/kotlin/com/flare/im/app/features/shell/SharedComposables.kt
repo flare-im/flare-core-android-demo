@@ -22,10 +22,8 @@ internal fun SectionTitle(text: String) {
 
 @Composable
 internal fun EmptyState(title: String, message: String) {
-    val colors = FlareTheme.colors
     Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, style = FlareTheme.type.headline, color = colors.textSecondary)
-        Text(message, style = FlareTheme.type.callout, color = colors.textTertiary, modifier = Modifier.padding(FlareTheme.tokens.md))
+        com.flare.im.ui.EmptyState(title = title, description = message)
     }
 }
 

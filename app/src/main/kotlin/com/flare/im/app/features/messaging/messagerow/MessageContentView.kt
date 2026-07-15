@@ -21,7 +21,7 @@ internal fun MessageContentView(message: AppMessage, outgoing: Boolean, vm: Mess
     when (message.core.content?.contentType ?: MessageContentType.TEXT) {
         MessageContentType.EMOJI -> EmojiMessageView(message, textColor)
         MessageContentType.STICKER -> StickerMessageView(message, textColor)
-        MessageContentType.TEXT, MessageContentType.RICH_TEXT -> TextMessageView(message, textColor)
+        MessageContentType.TEXT, MessageContentType.RICH_TEXT -> TextMessageView(message, textColor, outgoing)
         MessageContentType.IMAGE, MessageContentType.IMAGE_GROUP -> ImageMessageView(message, vm, outgoing, onPreview)
         MessageContentType.VIDEO -> VideoMessageView(message, vm, outgoing)
         MessageContentType.AUDIO -> AudioMessageView(message, vm, outgoing)

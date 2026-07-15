@@ -36,7 +36,13 @@ internal fun isStandaloneAsset(content: MessageContent?, preview: String): Boole
     return when (content.contentType) {
         MessageContentType.EMOJI -> emojiAsset(content) != null
         MessageContentType.STICKER -> stickerAsset(content) != null
-        MessageContentType.TEXT -> EmojiPresentation.lonePackKey(content.str("text", "plainText") ?: preview) != null
+        MessageContentType.TEXT -> content.str("docJson") == null
+        // delegated to self-contained flare-im-design kit cards (they carry their own surface)
+        MessageContentType.FILE, MessageContentType.LOCATION, MessageContentType.CARD,
+        MessageContentType.LINK_CARD, MessageContentType.VOTE, MessageContentType.TASK,
+        MessageContentType.IMAGE, MessageContentType.IMAGE_GROUP,
+        MessageContentType.VIDEO, MessageContentType.AUDIO,
+        MessageContentType.NOTIFICATION, MessageContentType.ANNOUNCEMENT, MessageContentType.SYSTEM -> true
         else -> false
     }
 }

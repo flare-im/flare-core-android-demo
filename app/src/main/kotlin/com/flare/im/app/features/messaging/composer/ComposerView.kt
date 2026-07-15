@@ -282,36 +282,18 @@ private fun ComposerToolbarIcon(
     }
 }
 
-/** 表情 + 贴纸选择面板：点选即发送（CreateEmoji / CreateSticker）。 */
+/** 表情 + 贴纸选择面板：委托 kit 的选择器（157 表情 + 全部贴纸包，中心源资源），点选即发送。 */
 @Composable
 private fun EmojiStickerPanel(vm: MessagingViewModel, onClose: () -> Unit) {
-    val colors = FlareTheme.colors
-    val tk = FlareTheme.tokens
-    Column(
-        Modifier.fillMaxWidth().background(colors.surfaceAlt).heightIn(max = 260.dp)
-            .verticalScroll(rememberScrollState()).padding(tk.md),
-    ) {
-        Text("Emoji", style = FlareTheme.type.captionStrong, color = colors.textTertiary)
-        FlowGrid(EmojiPresentation.composerEmojiKeys) { key ->
-            Box(Modifier.padding(tk.xs).clickable {
-                vm.buildAndSend(MessageBuildOp.CreateEmoji, mapOf("emoji" to key)); onClose()
-            }) { FlareAssetImage(EmojiPresentation.emojiAssetPath(key), key, 44.dp) { Text("🙂") } }
-        }
-        Spacer(Modifier.height(tk.sm))
-        Text("Stickers", style = FlareTheme.type.captionStrong, color = colors.textTertiary)
-        FlowGrid(EmojiPresentation.composerStickers) { s ->
-            Box(Modifier.padding(tk.xs).clickable {
-                vm.buildAndSend(MessageBuildOp.CreateSticker, mapOf("stickerId" to s.stickerId, "packageId" to s.packageId)); onClose()
-            }) { FlareAssetImage(EmojiPresentation.stickerAssetPath(s.packageId, s.stickerId), s.id, 60.dp) { Text("🎴") } }
-        }
-    }
-}
-
-@Composable
-private fun <T> FlowGrid(items: List<T>, item: @Composable (T) -> Unit) {
-    Column {
-        items.chunked(6).forEach { row -> Row { row.forEach { item(it) } } }
-    }
+    com.flare.im.ui.FlareEmojiStickerPicker(
+        emojiLabel = "Emoji",
+        onInsertEmoji = { key ->
+            vm.buildAndSend(MessageBuildOp.CreateEmoji, mapOf("emoji" to key)); onClose()
+        },
+        onSendSticker = { packageId, stickerId ->
+            vm.buildAndSend(MessageBuildOp.CreateSticker, mapOf("stickerId" to stickerId, "packageId" to packageId)); onClose()
+        },
+    )
 }
 
 // 这些 build op 弹表单收集输入（其余直接用默认内容发送）。

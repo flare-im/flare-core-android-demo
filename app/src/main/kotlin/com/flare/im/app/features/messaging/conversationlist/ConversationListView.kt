@@ -82,37 +82,62 @@ fun ConversationListScreen(store: FlareAppStore) {
     }
 }
 
+/** Feishu-style relative time label for the inbox row (HH:mm today / Yesterday / M/d / yyyy/M/d). */
+private fun conversationTimeLabel(millis: Long): String {
+    if (millis <= 0L) return ""
+    val cal = java.util.Calendar.getInstance()
+    val nowYear = cal.get(java.util.Calendar.YEAR)
+    val nowDoy = cal.get(java.util.Calendar.DAY_OF_YEAR)
+    cal.timeInMillis = millis
+    val year = cal.get(java.util.Calendar.YEAR)
+    val doy = cal.get(java.util.Calendar.DAY_OF_YEAR)
+    val loc = java.util.Locale.getDefault()
+    return when {
+        year == nowYear && doy == nowDoy -> java.text.SimpleDateFormat("HH:mm", loc).format(cal.time)
+        year == nowYear && doy == nowDoy - 1 -> "Yesterday"
+        year == nowYear -> java.text.SimpleDateFormat("M/d", loc).format(cal.time)
+        else -> java.text.SimpleDateFormat("yyyy/M/d", loc).format(cal.time)
+    }
+}
+
+/** Inline title tags for a conversation row (Group / Bot / Official), mapped into the kit. */
+private fun conversationRowTags(c: AppConversation): List<com.flare.im.ui.ConversationRowTag> = buildList {
+    if (c.core.conversationType == com.flare.im.model.common.enums.ConversationType.GROUP) {
+        add(com.flare.im.ui.ConversationRowTag("Group", com.flare.im.ui.FlareTagTone.Info))
+    }
+    c.core.role?.trim()?.takeIf { it.isNotEmpty() }?.let { role ->
+        val lower = role.lowercase()
+        val label = when {
+            lower.contains("bot") || lower.contains("robot") -> "Bot"
+            lower.contains("official") -> "Official"
+            else -> role.take(10)
+        }
+        add(com.flare.im.ui.ConversationRowTag(label, com.flare.im.ui.FlareTagTone.Warning))
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ConversationRow(store: FlareAppStore, c: AppConversation) {
-    val colors = FlareTheme.colors
-    val tk = FlareTheme.tokens
     val vm = store.messagingViewModel
     var menu by remember { mutableStateOf(false) }
     Box {
-        Row(
-            Modifier.fillMaxWidth()
-                .combinedClickable(onClick = { vm.openConversation(c.conversationId) }, onLongClick = { menu = true })
-                .padding(horizontal = tk.lg, vertical = tk.md),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(44.dp).clip(CircleShape).background(colors.brandSoft), Alignment.Center) {
-                Text(c.avatarLabel, color = colors.brand, style = FlareTheme.type.headline)
-            }
-            Spacer(Modifier.width(tk.md))
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (c.core.isPinned) { Text("📌", style = FlareTheme.type.caption); Spacer(Modifier.width(2.dp)) }
-                    Text(c.appTitle, style = FlareTheme.type.headline, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                }
-                Text(c.appPreview, style = FlareTheme.type.callout, color = colors.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            if (c.core.unreadCount > 0) {
-                Box(Modifier.clip(tk.pill).background(colors.brand).padding(horizontal = tk.sm, vertical = 2.dp)) {
-                    Text("${c.core.unreadCount}", color = colors.outgoingText, style = FlareTheme.type.caption)
-                }
-            }
-        }
+        com.flare.im.ui.ConversationRow(
+            item = com.flare.im.ui.ConversationRowData(
+                id = c.conversationId,
+                title = c.appTitle,
+                avatarUrl = c.core.avatarUrl.takeIf { it.isNotBlank() },
+                preview = c.appPreview,
+                timestampLabel = conversationTimeLabel(c.appSortTimestamp),
+                unreadCount = c.core.unreadCount,
+                pinned = c.core.isPinned,
+                muted = c.core.isMuted,
+                mentioned = c.core.mentionMe,
+                tags = conversationRowTags(c),
+            ),
+            onSelect = { vm.openConversation(c.conversationId) },
+            onLongPress = { menu = true },
+        )
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             listOf(
                 (if (c.core.isPinned) "Unpin" else "Pin") to "pin",

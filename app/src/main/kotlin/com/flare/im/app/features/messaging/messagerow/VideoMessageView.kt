@@ -6,6 +6,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -15,7 +16,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
@@ -28,10 +28,12 @@ import androidx.compose.ui.window.DialogProperties
 import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.app.features.messaging.MessagingViewModel
+import com.flare.im.ui.VideoMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** 视频消息：MediaMetadataRetriever 取首帧做缩略图（本地/远端），点击内联播放。 */
+/** 视频消息：MediaMetadataRetriever 取首帧做缩略图（本地/远端），交给 flare-im-design 的
+ *  [VideoMessage]（poster slot + 播放浮层）渲染；点击内联播放。缩略图与播放器仍归 app。 */
 @Composable
 internal fun VideoMessageView(message: AppMessage, vm: MessagingViewModel, outgoing: Boolean) {
     val context = LocalContext.current
@@ -57,20 +59,22 @@ internal fun VideoMessageView(message: AppMessage, vm: MessagingViewModel, outgo
             }
         }
     }
-    Box(
-        Modifier.sizeIn(maxWidth = 220.dp, maxHeight = 280.dp).clip(FlareTheme.tokens.radiusLarge)
-            .background(FlareTheme.colors.surfaceAlt)
-            .clickable { if (url != null) showPlayer = true },
-        Alignment.Center,
-    ) {
-        val t = thumb
-        if (t != null) {
-            Image(bitmap = t, contentDescription = "video", modifier = Modifier.fillMaxWidth(), contentScale = ContentScale.Crop)
-        } else {
-            CardRow("🎬", content?.str("description", "title") ?: "Video", outgoing)
-        }
-        androidx.compose.material3.Text("▶", style = FlareTheme.type.largeTitle, color = Color.White)
-    }
+    VideoMessage(
+        posterContent = {
+            val t = thumb
+            if (t != null) {
+                Image(
+                    bitmap = t,
+                    contentDescription = content?.str("description", "title") ?: "Video",
+                    modifier = Modifier.sizeIn(maxWidth = 220.dp, maxHeight = 280.dp).fillMaxWidth(),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                Box(Modifier.size(160.dp, 100.dp).background(FlareTheme.colors.surfaceAlt))
+            }
+        },
+        onPlay = { if (url != null) showPlayer = true },
+    )
     if (showPlayer) url?.let { VideoPlayerDialog(it) { showPlayer = false } }
 }
 
