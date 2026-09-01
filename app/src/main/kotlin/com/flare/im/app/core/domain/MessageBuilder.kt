@@ -5,7 +5,6 @@ import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.model.command.NormalizeRichDocFromMarkdownRequest
 import com.flare.im.model.command.message.build.*
 import com.flare.im.model.content.AudioContentPayload
-import com.flare.im.model.content.ForwardSourceMessage
 import com.flare.im.model.content.ImageContentPayload
 import com.flare.im.model.content.StickerContentPayload
 import com.flare.im.model.content.VideoContentPayload
@@ -122,19 +121,17 @@ object MessageBuilder {
                 ),
             )
             MessageBuildOp.CreateForward -> {
-                val src = selectedMessages.lastOrNull()
-                val defaultId = src?.let { if (it.core.serverId.isNotBlank()) it.core.serverId else it.core.clientMsgId } ?: ""
+                // 必须传**完整消息**而不是 id 存根：转发载荷要把原文嵌进去，
+                // 核心侧 forward_item_from_source 会读 content / senderId / conversationId。
+                // 早先按 ForwardSourceMessage 传，反序列化成 IMMessage 时缺必填字段
+                // 直接 INVALID_PARAMETER，转发每次都失败；契约已改成 Message。
+                val src = requireNotNull(selectedMessages.lastOrNull()) {
+                    "Select a message to forward first."
+                }
                 mb.buildForward(
                     BuildForwardMessageRequest(
                         conversationId, true, str(payload, "title", "Forwarded message"),
-                        listOf(
-                            ForwardSourceMessage(
-                                sourceMessageId = str(payload, "sourceMessageId", defaultId),
-                                sourceConversationId = str(payload, "sourceConversationId", src?.conversationId ?: conversationId),
-                                sourceSenderId = str(payload, "sourceSenderId", src?.core?.senderId ?: ""),
-                                plainText = str(payload, "plainText", src?.previewText ?: ""),
-                            ),
-                        ),
+                        listOf(src.core),
                     ),
                 )
             }
