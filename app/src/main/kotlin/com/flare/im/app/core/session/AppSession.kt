@@ -63,20 +63,27 @@ class AppSession {
         val storeConfigJson = JSONObject(sdkConfig).toString()
         sdk.init(sdkConfig)
 
-        progress("Generating core token")
         val ttl = draft.tokenTtlSeconds.toLongOrNull() ?: 86_400L
         val userId = draft.userId.trim()
         val tenantId = normalizedTenantId(draft)
-        val token = sdk.generateCoreToken(
-            CoreTokenRequest(
-                userId = userId,
-                secret = draft.tokenSecret,
-                issuer = draft.tokenIssuer,
-                ttlSecs = ttl,
-                deviceId = ANDROID_EXAMPLE_DEVICE_ID,
-                tenantId = tenantId,
-            ),
-        ).token
+        // 填了现成的接入 token 就直接用，不需要本地持有签名密钥。
+        val pastedToken = draft.accessToken.trim()
+        val token = if (pastedToken.isNotEmpty()) {
+            progress("Using provided access token")
+            pastedToken
+        } else {
+            progress("Generating core token")
+            sdk.generateCoreToken(
+                CoreTokenRequest(
+                    userId = userId,
+                    secret = draft.tokenSecret,
+                    issuer = draft.tokenIssuer,
+                    ttlSecs = ttl,
+                    deviceId = ANDROID_EXAMPLE_DEVICE_ID,
+                    tenantId = tenantId,
+                ),
+            ).token
+        }
 
         progress("Logging in")
         sdk.login(

@@ -235,6 +235,16 @@ private fun ServerConfigSection(store: FlareAppStore, draft: com.flare.im.app.co
             onValueChange = { auth.updateDraft { d -> d.withSecondaryServerAddress(it) } },
         )
     }
+    // 可选：直接填服务端签好的接入 token。填了就不需要本地持有签名密钥 ——
+    // 把密钥打进安装包等于让任何拿到它的人伪造任意用户身份。
+    Spacer(Modifier.height(8.dp))
+    LoginInputField(
+        label = "Access token (optional)",
+        placeholder = "Leave empty to sign locally with the built-in secret",
+        icon = Icons.Outlined.KeyboardArrowDown,
+        value = draft.accessToken,
+        onValueChange = { auth.updateDraft { d -> d.copy(accessToken = it) } },
+    )
 }
 
 /** 胶囊输入：标签 + 行内图标 + 文本框（灰底圆角，无描边）。 */

@@ -28,8 +28,13 @@ android {
         val defaultWsUrl = (project.findProperty("wsUrl") as String?) ?: "ws://10.0.2.2:60051/ws"
         val defaultTokenSecret =
             (project.findProperty("tokenSecret") as String?) ?: "flare-im-dev-secret"
+        // 可用 `-PaccessToken=...` 预填「接入 token」，免去在设备上手输 —— 256 字符的
+        // JWT 用 adb input text 打不进去（实测只落 12~26 个字符就被 IME 丢掉）。
+        // 传 token 而不是 tokenSecret：签名密钥不该进客户端产物。
+        val defaultAccessToken = (project.findProperty("accessToken") as String?) ?: ""
         buildConfigField("String", "DEFAULT_WS_URL", buildConfigString(defaultWsUrl))
         buildConfigField("String", "DEFAULT_TOKEN_SECRET", buildConfigString(defaultTokenSecret))
+        buildConfigField("String", "DEFAULT_ACCESS_TOKEN", buildConfigString(defaultAccessToken))
     }
 
     sourceSets {
