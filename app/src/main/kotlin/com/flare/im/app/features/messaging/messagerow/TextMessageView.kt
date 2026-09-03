@@ -13,7 +13,12 @@ import com.flare.im.ui.FlareEmojiPackMessage
  *  - 有 docJson → RichDoc v2 带格式渲染（heading/列表/bold…，见 RichDocRenderer）。
  *  - 整段表情包 key → kit 表情包大图；单 emoji → 大字号；否则普通文本。 */
 @Composable
-internal fun TextMessageView(message: AppMessage, textColor: Color, outgoing: Boolean) {
+internal fun TextMessageView(
+    message: AppMessage,
+    textColor: Color,
+    outgoing: Boolean,
+    deliveryStatus: (@Composable () -> Unit)? = null,
+) {
     val content = message.core.content
     val docJson = content?.str("docJson")
     if (docJson != null) {
@@ -30,6 +35,10 @@ internal fun TextMessageView(message: AppMessage, textColor: Color, outgoing: Bo
             style = FlareTheme.type.largeTitle.copy(fontSize = TextUnit.Unspecified),
             color = textColor,
         )
-        else -> com.flare.im.ui.TextMessage(text = message.previewText, self = outgoing)
+        else -> com.flare.im.ui.TextMessage(
+            text = message.previewText,
+            self = outgoing,
+            trailing = deliveryStatus,
+        )
     }
 }

@@ -12,7 +12,13 @@ import com.flare.im.model.common.enums.MessageContentType
 /** 内容分发：按 contentType 路由到对应消息类型组件（每类型独立文件）。
  *  撤回优先短路；未知类型走 [Fallback]。 */
 @Composable
-internal fun MessageContentView(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel, onPreview: (String) -> Unit) {
+internal fun MessageContentView(
+    message: AppMessage,
+    outgoing: Boolean,
+    vm: MessagingViewModel,
+    /** 气泡内尾部插槽（送达状态）；只有画气泡的文本组件会用到。 */
+    deliveryStatus: (@Composable () -> Unit)? = null,
+    onPreview: (String) -> Unit) {
     val colors = FlareTheme.colors
     val textColor = if (outgoing) colors.outgoingText else colors.textPrimary
 
@@ -23,7 +29,7 @@ internal fun MessageContentView(message: AppMessage, outgoing: Boolean, vm: Mess
     when (message.core.content?.contentType ?: MessageContentType.TEXT) {
         MessageContentType.EMOJI -> EmojiMessageView(message, textColor)
         MessageContentType.STICKER -> StickerMessageView(message, textColor)
-        MessageContentType.TEXT, MessageContentType.RICH_TEXT -> TextMessageView(message, textColor, outgoing)
+        MessageContentType.TEXT, MessageContentType.RICH_TEXT -> TextMessageView(message, textColor, outgoing, deliveryStatus)
         MessageContentType.IMAGE, MessageContentType.IMAGE_GROUP -> ImageMessageView(message, vm, outgoing, onPreview)
         MessageContentType.VIDEO -> VideoMessageView(message, vm, outgoing)
         MessageContentType.AUDIO -> AudioMessageView(message, vm, outgoing)

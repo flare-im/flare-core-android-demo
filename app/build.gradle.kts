@@ -62,7 +62,7 @@ kotlin {
 
 dependencies {
     implementation(project(":flare-core-android-sdk"))
-    implementation("com.flare.im:im-ui-compose:1.0.7")
+    implementation("com.flare.im:im-ui-compose:1.0.10")
 
     val composeBom = platform("androidx.compose:compose-bom:2024.12.01")
     implementation(composeBom)

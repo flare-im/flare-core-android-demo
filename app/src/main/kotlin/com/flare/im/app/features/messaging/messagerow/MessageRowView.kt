@@ -31,6 +31,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import com.flare.im.app.R
+import com.flare.im.model.common.enums.MessageContentType
 import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.app.core.domain.MessageBuildOp
@@ -73,24 +74,36 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
                     .combinedClickable(onClick = {}, onLongClick = { if (!message.core.isRecalled) menu = true })
                     .padding(if (standalone) PaddingValues(2.dp) else PaddingValues(horizontal = tk.md, vertical = tk.sm)),
             ) {
-                // 送达状态叠在**气泡右下角**（与 iOS 的 bottomTrailing overlay 同位置）。
+                // 送达状态在**气泡内部**（与 iOS 的 bottomTrailing 同位置）。
                 //
-                // ⚠️ 内容不能加尾部 padding：那会把这个 Box 撑得比气泡宽，
-                // BottomEnd 就落到气泡右**外**侧了（先前实测正是如此）。
-                // 纯文本的紫气泡由 kit 组件绘制（isStandaloneAsset 对无 docJson 的
-                // 文本返回 true，外层 Box 没有背景），所以只能叠加、不能同排。
-                MessageContentView(message, outgoing, vm) { previewPath = it }
-                if (deliveryState != MessageDeliveryState.NONE) {
-                    Box(
-                        Modifier.align(Alignment.BottomEnd)
-                            .padding(end = 6.dp, bottom = 4.dp),
-                    ) {
-                        MessageDeliveryStatus(
-                            state = deliveryState,
-                            onBubble = outgoing,
-                            onRetry = { vm.retry(message) },
-                        )
+                // 文本走 kit 的 trailing 插槽：文本气泡由 kit 绘制，只有它能为
+                // 勾号**留出空间**；叠加也能放对位置，但正文一长就压住末行文字。
+                // 其余内容类型是自带留白的卡片，叠加到右下角即可。
+                val statusSlot: (@Composable () -> Unit)? =
+                    if (deliveryState == MessageDeliveryState.NONE) {
+                        null
+                    } else {
+                        {
+                            MessageDeliveryStatus(
+                                state = deliveryState,
+                                onBubble = outgoing,
+                                onRetry = { vm.retry(message) },
+                            )
+                        }
                     }
+                val textLike = content?.contentType == null ||
+                    content.contentType == MessageContentType.TEXT ||
+                    content.contentType == MessageContentType.RICH_TEXT
+                MessageContentView(
+                    message,
+                    outgoing,
+                    vm,
+                    deliveryStatus = if (textLike) statusSlot else null,
+                ) { previewPath = it }
+                if (!textLike && statusSlot != null) {
+                    Box(
+                        Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 4.dp),
+                    ) { statusSlot() }
                 }
             }
             MessageActionMenu(message, content, menu, clipboard, vm) { menu = it }
