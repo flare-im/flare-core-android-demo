@@ -111,4 +111,5 @@
     <string name="auth_token_secret">Token secret (optional)</string>
     <string name="auth_token_secret_hint">Your server\'s signing secret — used to mint a token from the user ID</string>
     <string name="auth_fallback_ws">Fallback (WebSocket)</string>
+    <string name="auth_token_rejected">The server rejected the access token: the signing secret or issuer does not match the server, or the token has expired. Check the signing secret and try again.</string>
 </resources>

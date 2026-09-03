@@ -97,4 +97,5 @@
     <string name="auth_token_secret">签名密钥（可选）</string>
     <string name="auth_token_secret_hint">服务端的签名密钥 —— 用它按用户 ID 在本地签发 token</string>
     <string name="auth_fallback_ws">备用通道（WebSocket）</string>
+    <string name="auth_token_rejected">接入 Token 被服务端拒绝：签名密钥或签发者与服务端不一致，或 Token 已过期。请核对「签名密钥」后重试。</string>
 </resources>

@@ -172,7 +172,8 @@ private fun LoginForm(
     Spacer(Modifier.height(22.dp))
     ServerConfigSection(store, draft)
 
-    error?.let {
+    error?.let { raw ->
+        val it = if (LoginErrorText.isTokenRejected(raw)) stringResource(R.string.auth_token_rejected) else raw
         Spacer(Modifier.height(16.dp))
         LoginErrorBanner(it)
     }
