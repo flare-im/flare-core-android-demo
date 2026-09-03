@@ -7,7 +7,8 @@ import com.flare.im.app.core.domain.LoginTransportMode
 /**
  * 热启动会话档案：登录成功后保存，下次启动免登录直接
  * prepare(本地库) → 本地出图 → 后台 connect。
- * dev token 由本地 secret 重签，无需持久化。
+ * dev token 由本地 secret 重签，token 本身无需持久化；但**签名密钥要存**——
+ * 它现在是运行时输入的（不再打进安装包），不存的话每次重启都得重填。
  */
 class SavedSessionStore(context: Context) {
     private val prefs = context.applicationContext
@@ -21,6 +22,7 @@ class SavedSessionStore(context: Context) {
             .putString(KEY_QUIC_URL, draft.quicUrl)
             .putString(KEY_TLS_CA_CERT_PATH, draft.tlsCaCertPath)
             .putString(KEY_TENANT_ID, draft.tenantId)
+            .putString(KEY_TOKEN_SECRET, draft.tokenSecret)
             .apply()
     }
 
@@ -38,6 +40,7 @@ class SavedSessionStore(context: Context) {
             quicUrl = prefs.getString(KEY_QUIC_URL, null)?.takeIf { it.isNotBlank() } ?: defaults.quicUrl,
             tlsCaCertPath = prefs.getString(KEY_TLS_CA_CERT_PATH, null) ?: defaults.tlsCaCertPath,
             tenantId = prefs.getString(KEY_TENANT_ID, null)?.takeIf { it.isNotBlank() } ?: defaults.tenantId,
+            tokenSecret = prefs.getString(KEY_TOKEN_SECRET, null)?.takeIf { it.isNotBlank() } ?: defaults.tokenSecret,
         )
     }
 
@@ -47,6 +50,7 @@ class SavedSessionStore(context: Context) {
 
     private companion object {
         const val KEY_USER_ID = "userId"
+        const val KEY_TOKEN_SECRET = "tokenSecret"
         const val KEY_TRANSPORT_MODE = "transportMode"
         const val KEY_WS_URL = "wsUrl"
         const val KEY_QUIC_URL = "quicUrl"

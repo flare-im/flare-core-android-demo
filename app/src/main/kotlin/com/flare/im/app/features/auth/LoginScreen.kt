@@ -228,22 +228,32 @@ private fun ServerConfigSection(store: FlareAppStore, draft: com.flare.im.app.co
     draft.secondaryServerAddress?.let { secondary ->
         Spacer(Modifier.height(8.dp))
         LoginInputField(
-            label = "Fallback (WebSocket)",
+            label = stringResource(R.string.auth_fallback_ws),
             placeholder = secondary,
             icon = Icons.Outlined.KeyboardArrowDown,
             value = secondary,
             onValueChange = { auth.updateDraft { d -> d.withSecondaryServerAddress(it) } },
         )
     }
-    // 可选：直接填服务端签好的接入 token。填了就不需要本地持有签名密钥 ——
-    // 把密钥打进安装包等于让任何拿到它的人伪造任意用户身份。
+    // 两条路，优先级：填了 token 就直接用；否则用下面的密钥按 user id 本地签发。
+    //
+    // 密钥做成**运行时输入**而不是打进安装包：打进去等于让任何拿到安装包的人
+    // 伪造任意用户身份。填在这里只落在本机，跟服务器地址一样。
     Spacer(Modifier.height(8.dp))
     LoginInputField(
-        label = "Access token (optional)",
-        placeholder = "Leave empty to sign locally with the built-in secret",
+        label = stringResource(R.string.auth_access_token),
+        placeholder = stringResource(R.string.auth_access_token_hint),
         icon = Icons.Outlined.KeyboardArrowDown,
         value = draft.accessToken,
         onValueChange = { auth.updateDraft { d -> d.copy(accessToken = it) } },
+    )
+    Spacer(Modifier.height(8.dp))
+    LoginInputField(
+        label = stringResource(R.string.auth_token_secret),
+        placeholder = stringResource(R.string.auth_token_secret_hint),
+        icon = Icons.Outlined.KeyboardArrowDown,
+        value = draft.tokenSecret,
+        onValueChange = { auth.updateDraft { d -> d.copy(tokenSecret = it) } },
     )
 }
 

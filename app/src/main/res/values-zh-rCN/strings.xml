@@ -92,4 +92,9 @@
     <string name="msg_edit_hint">新的消息内容</string>
     <string name="action_confirm">确定</string>
     <string name="composer_replying_to">正在回复 %1$s：%2$s</string>
+    <string name="auth_access_token">接入 token（可选）</string>
+    <string name="auth_access_token_hint">留空则用下面的密钥在本地签发</string>
+    <string name="auth_token_secret">签名密钥（可选）</string>
+    <string name="auth_token_secret_hint">服务端的签名密钥 —— 用它按用户 ID 在本地签发 token</string>
+    <string name="auth_fallback_ws">备用通道（WebSocket）</string>
 </resources>
