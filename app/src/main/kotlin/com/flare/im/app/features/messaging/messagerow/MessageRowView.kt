@@ -19,6 +19,13 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.flare.im.app.core.domain.MessageDelivery
+import com.flare.im.app.core.domain.MessageDeliveryState
 import com.flare.im.app.R
 import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.AppMessage
@@ -58,10 +65,20 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
             }
             MessageActionMenu(message, content, menu, clipboard, vm) { menu = it }
         }
-        when {
-            message.appStableId in failed -> Text(stringResource(R.string.msg_state_failed), style = FlareTheme.type.caption, color = colors.danger, modifier = Modifier.clickable { vm.retry(message) })
-            message.appStableId in pending -> Text(stringResource(R.string.msg_state_sending), style = FlareTheme.type.caption, color = colors.textTertiary)
-        }
+        // 送达状态：此前只有"发送中/失败"，已发送、已送达、已读全缺 ——
+        // 自己发的消息发出去之后就再没有任何反馈了。
+        // 判定用核心那一份（MessageDelivery，由 sdk-spec 向量钉住），
+        // 视觉与 iOS DeliveryStatusGlyph 对齐：单勾=已送达、双勾=已读。
+        MessageDeliveryStatus(
+            state = MessageDelivery.state(
+                isSelf = outgoing,
+                status = message.core.status,
+                isRead = message.core.isRead,
+                isPending = message.appStableId in pending,
+                isFailed = message.appStableId in failed,
+            ),
+            onRetry = { vm.retry(message) },
+        )
         ReactionStrip(message, me, vm)
     }
     previewPath?.let { p -> MediaPreviewDialog(p) { previewPath = null } }
@@ -206,6 +223,39 @@ private fun ReactionStrip(message: AppMessage, me: String?, vm: MessagingViewMod
                     Spacer(Modifier.width(2.dp))
                     Text("${r.count}", style = FlareTheme.type.caption, color = if (mine) colors.brand else colors.textSecondary)
                 }
+            }
+        }
+    }
+}
+
+/** 送达状态指示：失败可点重发；已读双勾。与 iOS DeliveryStatusGlyph 同视觉。 */
+@Composable
+private fun MessageDeliveryStatus(state: MessageDeliveryState, onRetry: () -> Unit) {
+    val colors = FlareTheme.colors
+    val tk = FlareTheme.tokens
+    when (state) {
+        MessageDeliveryState.NONE -> Unit
+        MessageDeliveryState.SENDING -> Text(
+            stringResource(R.string.msg_state_sending),
+            style = FlareTheme.type.caption,
+            color = colors.textTertiary,
+        )
+        MessageDeliveryState.FAILED -> Text(
+            stringResource(R.string.msg_state_failed),
+            style = FlareTheme.type.caption,
+            color = colors.danger,
+            modifier = Modifier.clickable { onRetry() },
+        )
+        MessageDeliveryState.DELIVERED, MessageDeliveryState.READ -> Row(
+            horizontalArrangement = Arrangement.spacedBy((-4).dp),
+            modifier = Modifier.semantics {
+                contentDescription = if (state == MessageDeliveryState.READ) "已读" else "已送达"
+            },
+        ) {
+            val tint = if (state == MessageDeliveryState.READ) colors.brand else colors.textTertiary
+            Icon(Icons.Default.Check, contentDescription = null, tint = tint, modifier = Modifier.size(tk.md))
+            if (state == MessageDeliveryState.READ) {
+                Icon(Icons.Default.Check, contentDescription = null, tint = tint, modifier = Modifier.size(tk.md))
             }
         }
     }
