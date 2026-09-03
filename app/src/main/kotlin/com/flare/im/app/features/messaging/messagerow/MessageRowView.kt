@@ -26,6 +26,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.flare.im.app.core.domain.MessageDelivery
 import com.flare.im.app.core.domain.MessageDeliveryState
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
 import com.flare.im.app.R
 import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.AppMessage
@@ -46,6 +50,14 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
     val clipboard = LocalClipboardManager.current
     val me by vm.currentUserId.collectAsState()
     val content = message.core.content
+    // 送达状态：判定用核心那一份（MessageDelivery，由 sdk-spec 向量钉住）。
+    val deliveryState = MessageDelivery.state(
+        isSelf = outgoing,
+        status = message.core.status,
+        isRead = message.core.isRead,
+        isPending = message.appStableId in pending,
+        isFailed = message.appStableId in failed,
+    )
     val standalone = !message.core.isRecalled && isStandaloneAsset(content, message.previewText)
 
     Column(Modifier.fillMaxWidth(), horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start) {
@@ -61,24 +73,29 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
                     .combinedClickable(onClick = {}, onLongClick = { if (!message.core.isRecalled) menu = true })
                     .padding(if (standalone) PaddingValues(2.dp) else PaddingValues(horizontal = tk.md, vertical = tk.sm)),
             ) {
+                // 送达状态叠在**气泡右下角**（与 iOS 的 bottomTrailing overlay 同位置）。
+                //
+                // ⚠️ 内容不能加尾部 padding：那会把这个 Box 撑得比气泡宽，
+                // BottomEnd 就落到气泡右**外**侧了（先前实测正是如此）。
+                // 纯文本的紫气泡由 kit 组件绘制（isStandaloneAsset 对无 docJson 的
+                // 文本返回 true，外层 Box 没有背景），所以只能叠加、不能同排。
                 MessageContentView(message, outgoing, vm) { previewPath = it }
+                if (deliveryState != MessageDeliveryState.NONE) {
+                    Box(
+                        Modifier.align(Alignment.BottomEnd)
+                            .padding(end = 6.dp, bottom = 4.dp),
+                    ) {
+                        MessageDeliveryStatus(
+                            state = deliveryState,
+                            onBubble = outgoing,
+                            onRetry = { vm.retry(message) },
+                        )
+                    }
+                }
             }
             MessageActionMenu(message, content, menu, clipboard, vm) { menu = it }
         }
-        // 送达状态：此前只有"发送中/失败"，已发送、已送达、已读全缺 ——
-        // 自己发的消息发出去之后就再没有任何反馈了。
-        // 判定用核心那一份（MessageDelivery，由 sdk-spec 向量钉住），
-        // 视觉与 iOS DeliveryStatusGlyph 对齐：单勾=已送达、双勾=已读。
-        MessageDeliveryStatus(
-            state = MessageDelivery.state(
-                isSelf = outgoing,
-                status = message.core.status,
-                isRead = message.core.isRead,
-                isPending = message.appStableId in pending,
-                isFailed = message.appStableId in failed,
-            ),
-            onRetry = { vm.retry(message) },
-        )
+
         ReactionStrip(message, me, vm)
     }
     previewPath?.let { p -> MediaPreviewDialog(p) { previewPath = null } }
@@ -228,34 +245,47 @@ private fun ReactionStrip(message: AppMessage, me: String?, vm: MessagingViewMod
     }
 }
 
-/** 送达状态指示：失败可点重发；已读双勾。与 iOS DeliveryStatusGlyph 同视觉。 */
+/** 送达状态指示：贴在气泡右下角，与 iOS DeliveryStatusGlyph 同视觉。
+ *
+ *  全部用图标而不是文字：文字（"发送中…" / "发送失败 · 点击重试"）在气泡里放不下，
+ *  而且会把气泡撑成一个奇怪的宽度。失败图标可点重发。 */
 @Composable
-private fun MessageDeliveryStatus(state: MessageDeliveryState, onRetry: () -> Unit) {
+private fun MessageDeliveryStatus(
+    state: MessageDeliveryState,
+    onBubble: Boolean,
+    onRetry: () -> Unit,
+) {
     val colors = FlareTheme.colors
-    val tk = FlareTheme.tokens
+    val glyph = 14.dp
+    val onBubbleTint = colors.outgoingText.copy(alpha = 0.9f)
     when (state) {
         MessageDeliveryState.NONE -> Unit
-        MessageDeliveryState.SENDING -> Text(
-            stringResource(R.string.msg_state_sending),
-            style = FlareTheme.type.caption,
-            color = colors.textTertiary,
+        MessageDeliveryState.SENDING -> CircularProgressIndicator(
+            strokeWidth = 1.5.dp,
+            color = if (onBubble) onBubbleTint else colors.textTertiary,
+            modifier = Modifier.size(glyph).semantics { contentDescription = "发送中" },
         )
-        MessageDeliveryState.FAILED -> Text(
-            stringResource(R.string.msg_state_failed),
-            style = FlareTheme.type.caption,
-            color = colors.danger,
-            modifier = Modifier.clickable { onRetry() },
+        MessageDeliveryState.FAILED -> Icon(
+            Icons.Default.Warning,
+            contentDescription = "发送失败，点击重试",
+            tint = colors.danger,
+            modifier = Modifier.size(glyph).clickable { onRetry() },
         )
         MessageDeliveryState.DELIVERED, MessageDeliveryState.READ -> Row(
-            horizontalArrangement = Arrangement.spacedBy((-4).dp),
+            horizontalArrangement = Arrangement.spacedBy((-5).dp),
             modifier = Modifier.semantics {
                 contentDescription = if (state == MessageDeliveryState.READ) "已读" else "已送达"
             },
         ) {
-            val tint = if (state == MessageDeliveryState.READ) colors.brand else colors.textTertiary
-            Icon(Icons.Default.Check, contentDescription = null, tint = tint, modifier = Modifier.size(tk.md))
+            val tint = when {
+                state == MessageDeliveryState.READ && onBubble -> colors.outgoingText
+                state == MessageDeliveryState.READ -> colors.brand
+                onBubble -> onBubbleTint.copy(alpha = 0.65f)
+                else -> colors.textTertiary
+            }
+            Icon(Icons.Default.Check, contentDescription = null, tint = tint, modifier = Modifier.size(glyph))
             if (state == MessageDeliveryState.READ) {
-                Icon(Icons.Default.Check, contentDescription = null, tint = tint, modifier = Modifier.size(tk.md))
+                Icon(Icons.Default.Check, contentDescription = null, tint = tint, modifier = Modifier.size(glyph))
             }
         }
     }
