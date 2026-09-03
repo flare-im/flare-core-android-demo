@@ -1,7 +1,9 @@
 package com.flare.im.app.features.messaging.messagerow
 
 import androidx.compose.material3.Text
+import androidx.compose.ui.res.stringResource
 import androidx.compose.runtime.Composable
+import com.flare.im.app.R
 import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.app.features.messaging.MessagingViewModel
@@ -15,7 +17,7 @@ internal fun MessageContentView(message: AppMessage, outgoing: Boolean, vm: Mess
     val textColor = if (outgoing) colors.outgoingText else colors.textPrimary
 
     if (message.core.isRecalled) {
-        Text("Message recalled", style = FlareTheme.type.body, color = colors.textTertiary)
+        Text(stringResource(R.string.msg_state_recalled), style = FlareTheme.type.body, color = colors.textTertiary)
         return
     }
     when (message.core.content?.contentType ?: MessageContentType.TEXT) {

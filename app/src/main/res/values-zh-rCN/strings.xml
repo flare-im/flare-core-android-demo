@@ -71,4 +71,25 @@
 
     <string name="lab_title">SDK 运行状态</string>
     <string name="lab_no_ops">暂无实验操作</string>
+    <string name="msg_action_reply">回复</string>
+    <string name="msg_action_forward">转发</string>
+    <string name="msg_action_copy">复制</string>
+    <string name="msg_action_edit">编辑</string>
+    <string name="msg_action_edit_rich">编辑富文本</string>
+    <string name="msg_action_recall">撤回</string>
+    <string name="msg_action_pin">置顶</string>
+    <string name="msg_action_pin_self">仅为我置顶</string>
+    <string name="msg_action_unpin">取消置顶</string>
+    <string name="msg_action_mark">标记</string>
+    <string name="msg_action_delete_self">仅删除本端</string>
+    <string name="msg_action_delete_everyone">对所有人删除</string>
+    <string name="msg_action_save">保存到下载</string>
+    <string name="msg_action_resend">重新发送</string>
+    <string name="msg_state_recalled">消息已撤回</string>
+    <string name="msg_state_failed">发送失败 · 点击重试</string>
+    <string name="msg_state_sending">发送中…</string>
+    <string name="msg_edit_title">编辑消息</string>
+    <string name="msg_edit_hint">新的消息内容</string>
+    <string name="action_confirm">确定</string>
+    <string name="composer_replying_to">正在回复 %1$s：%2$s</string>
 </resources>

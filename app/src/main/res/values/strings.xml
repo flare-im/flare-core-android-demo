@@ -85,4 +85,25 @@
     <!-- SDK Lab -->
     <string name="lab_title">SDK Status</string>
     <string name="lab_no_ops">No lab operations yet.</string>
+    <string name="msg_action_reply">Reply</string>
+    <string name="msg_action_forward">Forward</string>
+    <string name="msg_action_copy">Copy</string>
+    <string name="msg_action_edit">Edit</string>
+    <string name="msg_action_edit_rich">Edit rich text</string>
+    <string name="msg_action_recall">Recall</string>
+    <string name="msg_action_pin">Pin</string>
+    <string name="msg_action_pin_self">Pin for me</string>
+    <string name="msg_action_unpin">Unpin</string>
+    <string name="msg_action_mark">Flag</string>
+    <string name="msg_action_delete_self">Delete for me</string>
+    <string name="msg_action_delete_everyone">Delete for everyone</string>
+    <string name="msg_action_save">Save to downloads</string>
+    <string name="msg_action_resend">Resend</string>
+    <string name="msg_state_recalled">Message recalled</string>
+    <string name="msg_state_failed">Failed · tap to retry</string>
+    <string name="msg_state_sending">Sending…</string>
+    <string name="msg_edit_title">Edit message</string>
+    <string name="msg_edit_hint">New message text</string>
+    <string name="action_confirm">OK</string>
+    <string name="composer_replying_to">Replying to %1$s: %2$s</string>
 </resources>

@@ -7,6 +7,7 @@ import com.flare.im.app.core.data.ViewDataRepository
 import com.flare.im.app.core.domain.ConversationFilter
 import com.flare.im.app.core.domain.MessageBuildOp
 import com.flare.im.app.core.domain.MessageBuilder
+import com.flare.im.api.ConnectionState
 import com.flare.im.app.core.session.AppLifecycle
 import com.flare.im.app.core.session.AppSession
 import com.flare.im.app.core.domain.AppConversation
@@ -73,6 +74,16 @@ class MessagingViewModel(
     val pendingMessageKeys: StateFlow<Set<String>> = _pendingMessageKeys.asStateFlow()
     private val _failedMessageKeys = MutableStateFlow<Set<String>>(emptySet())
     val failedMessageKeys: StateFlow<Set<String>> = _failedMessageKeys.asStateFlow()
+    /** 本会话内已置顶的消息，用来把 Pin/Unpin 收成一个正确的开关。
+     *  wire 上的 Message 没有 pinned 字段，所以只能本地跟踪；
+     *  重进会话会丢，但总好过同时常显 Pin 与 Unpin（其中一个必然是错的）。 */
+    private val _pinnedMessageKeys = MutableStateFlow<Set<String>>(emptySet())
+    /** 正在回复的目标消息；非空时 composer 顶部显示引用条，发送走引用消息。 */
+    private val _replyTarget = MutableStateFlow<AppMessage?>(null)
+    val replyTarget: StateFlow<AppMessage?> = _replyTarget.asStateFlow()
+
+    fun replyTo(message: AppMessage) { _replyTarget.value = message }
+    fun cancelReply() { _replyTarget.value = null }
 
     private val _startConversationDraft = MutableStateFlow(StartConversationDraft())
     val startConversationDraft: StateFlow<StartConversationDraft> = _startConversationDraft.asStateFlow()
@@ -139,11 +150,28 @@ class MessagingViewModel(
         val trimmed = text.trim()
         val conversationId = environment.selectedConversationId.value ?: return@launch
         if (trimmed.isEmpty()) return@launch
-        environment.run("message.send_text") {
+        val replying = _replyTarget.value
+        environment.run(if (replying == null) "message.send_text" else "message.send_quote") {
             val sdk = client ?: error("Login before sending messages")
-            val message = sdk.messageBuilder.buildText(
-                com.flare.im.model.command.message.build.BuildTextMessageRequest(conversationId, trimmed),
-            )
+            // 有回复目标就发引用消息：正文是用户真正输入的内容，
+            // 而不是 SDK Lab 里那个写死的 "Quoted from Android SDK Lab"。
+            val message = if (replying == null) {
+                sdk.messageBuilder.buildText(
+                    com.flare.im.model.command.message.build.BuildTextMessageRequest(conversationId, trimmed),
+                )
+            } else {
+                MessageBuilder.build(
+                    sdk,
+                    conversationId,
+                    MessageBuildOp.CreateQuote,
+                    mapOf(
+                        "quotedMessageId" to replying.core.serverId.ifBlank { replying.core.clientMsgId },
+                        "text" to trimmed,
+                    ),
+                    listOf(replying),
+                )
+            }
+            _replyTarget.value = null
             sendBuilt(sdk, message, conversationId)
         }
     }
@@ -273,21 +301,56 @@ class MessagingViewModel(
         return null
     }
 
-    fun messageAction(action: String, message: AppMessage, reaction: String = "like") = scope.launch {
+    /** 一条消息此刻可用的动作，由**核心**判定（规则在 `domain::message_actions`）。 */
+    suspend fun actionAvailability(message: AppMessage): Map<String, Any?> {
+        val sdk = client ?: return emptyMap()
+        val key = message.appStableId
+        return runCatching {
+            sdk.messages.dispatchMessage(
+                mapOf(
+                    "op" to "action_availability",
+                    "params" to mapOf(
+                        "messageId" to (message.core.serverId.ifBlank { message.core.clientMsgId }),
+                        "multiSelectMode" to false,
+                        "isPending" to (key in _pendingMessageKeys.value),
+                        "isFailed" to (key in _failedMessageKeys.value),
+                        "isPinned" to (key in _pinnedMessageKeys.value),
+                        "isConnected" to (session.connectionState.value in
+                            setOf(ConnectionState.CONNECTED, ConnectionState.READY)),
+                    ),
+                ),
+            )
+        }.getOrDefault(emptyMap())
+    }
+
+    fun messageAction(
+        action: String,
+        message: AppMessage,
+        reaction: String = "like",
+        text: String = "",
+    ) = scope.launch {
         environment.run("message.$action") {
             val sdk = client ?: error("Login before message actions")
             val req = mutationRequest(message)
             when (action) {
                 "recall" -> sdk.messages.recallMessage(req)
-                "edit" -> sdk.messages.editTextByMessageId(req + ("text" to "Edited from Android example"))
+                // 正文由调用方给：曾经写死 "Edited from Android example"，
+                // 点一下"编辑"就把用户的原文替换成占位串，且没有任何输入入口。
+                "edit" -> sdk.messages.editTextByMessageId(req + ("text" to text))
                 "editRich" -> sdk.messages.editRichDocByMessageId(req + ("markdown" to "## Edited rich doc\n\n- **bold** point\n- _italic_ point"))
                 "deleteSelf" -> sdk.messages.deleteMessageForSelf(req)
                 "deleteEveryone" -> sdk.messages.deleteMessageForEveryone(req)
                 "react" -> sdk.messages.addReaction(req + ("reaction" to reaction))
                 "unreact" -> sdk.messages.removeReaction(req + ("reaction" to reaction))
-                "pin" -> sdk.messages.pinMessageById(req + ("scope" to 0))
+                "pin" -> {
+                    sdk.messages.pinMessageById(req + ("scope" to 0))
+                    _pinnedMessageKeys.update { it + message.appStableId }
+                }
                 "pinSelf" -> sdk.messages.pinMessageById(req + ("scope" to 1))
-                "unpin" -> sdk.messages.unpinMessageById(req + ("scope" to 0))
+                "unpin" -> {
+                    sdk.messages.unpinMessageById(req + ("scope" to 0))
+                    _pinnedMessageKeys.update { it - message.appStableId }
+                }
                 "mark" -> sdk.messages.markMessageById(req)
                 "unmark" -> sdk.messages.unmarkMessageById(req)
                 else -> error("Unsupported action $action")

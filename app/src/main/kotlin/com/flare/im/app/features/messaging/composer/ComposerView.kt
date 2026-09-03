@@ -63,6 +63,7 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
     var builderMenu by remember { mutableStateOf(false) }
     var emojiPanel by remember { mutableStateOf(false) }
     var formOp by remember { mutableStateOf<MessageBuildOp?>(null) }
+    val replyTarget by vm.replyTarget.collectAsState()
 
     // richMode 下发送走 create_rich_doc（core 归一化 Markdown→docJson）；否则纯文本。
     fun submitComposer() {
@@ -95,6 +96,32 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
             .clip(RoundedCornerShape(topStart = tk.lg, topEnd = tk.lg))
             .background(colors.background),
     ) {
+        // 引用条：正在回复谁 + 一键取消。没有它，用户看不出下一条会带引用。
+        replyTarget?.let { target ->
+            Row(
+                Modifier.fillMaxWidth()
+                    .background(colors.surfaceAlt)
+                    .padding(horizontal = tk.md, vertical = tk.xs),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    stringResource(
+                        R.string.composer_replying_to,
+                        target.core.senderId,
+                        target.previewText.take(40),
+                    ),
+                    style = FlareTheme.type.caption,
+                    color = colors.textSecondary,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    stringResource(R.string.action_cancel),
+                    style = FlareTheme.type.caption,
+                    color = colors.brand,
+                    modifier = Modifier.clickable { vm.cancelReply() }.padding(start = tk.sm),
+                )
+            }
+        }
         if (emojiPanel) EmojiStickerPanel(vm) { emojiPanel = false }
         formOp?.let { op -> ComposerFormDialog(op, vm) { formOp = null } }
         HorizontalDivider(thickness = 0.5.dp, color = colors.hairline)
