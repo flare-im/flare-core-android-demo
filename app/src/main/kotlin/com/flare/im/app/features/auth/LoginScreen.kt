@@ -38,6 +38,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
@@ -254,6 +256,7 @@ private fun ServerConfigSection(store: FlareAppStore, draft: com.flare.im.app.co
         icon = Icons.Outlined.KeyboardArrowDown,
         value = draft.tokenSecret,
         onValueChange = { auth.updateDraft { d -> d.copy(tokenSecret = it) } },
+        secret = true,
     )
 }
 
@@ -265,6 +268,8 @@ private fun LoginInputField(
     icon: ImageVector,
     value: String,
     onValueChange: (String) -> Unit,
+    /** 密钥类输入按密码遮罩，与 kit web 端 type="password" 一致。 */
+    secret: Boolean = false,
 ) {
     val colors = FlareTheme.colors
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -285,6 +290,7 @@ private fun LoginInputField(
                     singleLine = true,
                     textStyle = FlareTheme.type.body.copy(color = colors.textPrimary),
                     cursorBrush = SolidColor(colors.brand),
+                    visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
