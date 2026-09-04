@@ -33,9 +33,17 @@ android {
         // JWT 用 adb input text 打不进去（实测只落 12~26 个字符就被 IME 丢掉）。
         // 传 token 而不是 tokenSecret：签名密钥不该进客户端产物。
         val defaultAccessToken = (project.findProperty("accessToken") as String?) ?: ""
+        // QUIC 地址与信任 CA（base64 DER 或 PEM）：连自建 CA 签发证书的服务端时用 `-PquicUrl=... -PtlsCaCert=...`。
+        val defaultQuicUrl = (project.findProperty("quicUrl") as String?) ?: "quic://10.0.2.2:60052"
+        val defaultTlsCaCert = (project.findProperty("tlsCaCert") as String?) ?: ""
+        // 预选传输模式（WebSocket / Quic / Race），联调自动化用：`-PtransportMode=Quic`
+        val defaultTransportMode = (project.findProperty("transportMode") as String?) ?: "WebSocket"
         buildConfigField("String", "DEFAULT_WS_URL", buildConfigString(defaultWsUrl))
         buildConfigField("String", "DEFAULT_HTTP_URL", buildConfigString(defaultHttpUrl))
         buildConfigField("String", "DEFAULT_ACCESS_TOKEN", buildConfigString(defaultAccessToken))
+        buildConfigField("String", "DEFAULT_QUIC_URL", buildConfigString(defaultQuicUrl))
+        buildConfigField("String", "DEFAULT_TLS_CA_CERT", buildConfigString(defaultTlsCaCert))
+        buildConfigField("String", "DEFAULT_TRANSPORT_MODE", buildConfigString(defaultTransportMode))
     }
 
     sourceSets {

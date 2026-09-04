@@ -71,15 +71,23 @@ enum class LoginTransportMode(val title: String) {
     WebSocket("WebSocket"),
     Quic("QUIC"),
     Race("QUIC Race"),
+    ;
+
+    companion object {
+        fun fromNameOrDefault(raw: String?): LoginTransportMode =
+            entries.firstOrNull { it.name.equals(raw?.trim(), ignoreCase = true) } ?: WebSocket
+    }
 }
 
 /** 登录默认值（与 LoginDraft 等价，含 transportConfig 生成）。 */
 data class LoginDraft(
     val userId: String = "android-demo",
-    val transportMode: LoginTransportMode = LoginTransportMode.WebSocket,
+    val transportMode: LoginTransportMode = LoginTransportMode.fromNameOrDefault(com.flare.im.app.BuildConfig.DEFAULT_TRANSPORT_MODE),
     val wsUrl: String = com.flare.im.app.BuildConfig.DEFAULT_WS_URL,
-    val quicUrl: String = "quic://10.0.2.2:60052",
+    val quicUrl: String = com.flare.im.app.BuildConfig.DEFAULT_QUIC_URL,
     val tlsCaCertPath: String = "",
+    /** 内联信任 CA（PEM 或 base64 DER）：QUIC / wss 连自建 CA 签发证书的服务端时必配；移动端没有稳定文件路径。 */
+    val tlsCaCert: String = com.flare.im.app.BuildConfig.DEFAULT_TLS_CA_CERT,
     val tenantId: String = "0",
     /** 网关 HTTP 基址：SDK 托管 token 时向它签发/刷新；也是媒体等 HTTP 接口的基址。 */
     val httpUrl: String = com.flare.im.app.BuildConfig.DEFAULT_HTTP_URL,
@@ -113,7 +121,10 @@ data class LoginDraft(
     fun transportConfig(): Map<String, Any> {
         val ws = wsUrl.trim()
         require(ws.isNotEmpty()) { "WebSocket URL is required" }
-        val tls = tlsCaCertPath.trim().takeIf { it.isNotEmpty() }?.let { mapOf("tlsCaCertPath" to it) } ?: emptyMap()
+        val tls = buildMap<String, Any> {
+            tlsCaCertPath.trim().takeIf { it.isNotEmpty() }?.let { put("tlsCaCertPath", it) }
+            tlsCaCert.trim().takeIf { it.isNotEmpty() }?.let { put("tlsCaCert", it) }
+        }
         if (transportMode == LoginTransportMode.WebSocket) {
             return mapOf(
                 "wsUrl" to ws,
