@@ -38,12 +38,15 @@ android {
         val defaultTlsCaCert = (project.findProperty("tlsCaCert") as String?) ?: ""
         // 预选传输模式（WebSocket / Quic / Race），联调自动化用：`-PtransportMode=Quic`
         val defaultTransportMode = (project.findProperty("transportMode") as String?) ?: "WebSocket"
+        // 预填用户 ID（模拟器自动化用，adb 往 Compose 输入框打字不可靠）：`-PuserId=hugo`
+        val defaultUserId = (project.findProperty("userId") as String?) ?: "android-demo"
         buildConfigField("String", "DEFAULT_WS_URL", buildConfigString(defaultWsUrl))
         buildConfigField("String", "DEFAULT_HTTP_URL", buildConfigString(defaultHttpUrl))
         buildConfigField("String", "DEFAULT_ACCESS_TOKEN", buildConfigString(defaultAccessToken))
         buildConfigField("String", "DEFAULT_QUIC_URL", buildConfigString(defaultQuicUrl))
         buildConfigField("String", "DEFAULT_TLS_CA_CERT", buildConfigString(defaultTlsCaCert))
         buildConfigField("String", "DEFAULT_TRANSPORT_MODE", buildConfigString(defaultTransportMode))
+        buildConfigField("String", "DEFAULT_USER_ID", buildConfigString(defaultUserId))
     }
 
     sourceSets {

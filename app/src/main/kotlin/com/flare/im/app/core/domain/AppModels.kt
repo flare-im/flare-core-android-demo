@@ -81,7 +81,7 @@ enum class LoginTransportMode(val title: String) {
 
 /** 登录默认值（与 LoginDraft 等价，含 transportConfig 生成）。 */
 data class LoginDraft(
-    val userId: String = "android-demo",
+    val userId: String = com.flare.im.app.BuildConfig.DEFAULT_USER_ID,
     val transportMode: LoginTransportMode = LoginTransportMode.fromNameOrDefault(com.flare.im.app.BuildConfig.DEFAULT_TRANSPORT_MODE),
     val wsUrl: String = com.flare.im.app.BuildConfig.DEFAULT_WS_URL,
     val quicUrl: String = com.flare.im.app.BuildConfig.DEFAULT_QUIC_URL,
