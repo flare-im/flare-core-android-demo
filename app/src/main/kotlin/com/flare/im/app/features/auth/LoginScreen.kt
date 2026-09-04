@@ -238,10 +238,16 @@ private fun ServerConfigSection(store: FlareAppStore, draft: com.flare.im.app.co
             onValueChange = { auth.updateDraft { d -> d.withSecondaryServerAddress(it) } },
         )
     }
-    // 两条路，优先级：填了 token 就直接用；否则用下面的密钥按 user id 本地签发。
-    //
-    // 密钥做成**运行时输入**而不是打进安装包：打进去等于让任何拿到安装包的人
-    // 伪造任意用户身份。填在这里只落在本机，跟服务器地址一样。
+    // 两条路：应用托管——填了业务后端签好的接入 token 就原样用；
+    // SDK 托管——留空，核心向下面这个网关地址签发并自动刷新。客户端从不持有签名密钥。
+    Spacer(Modifier.height(8.dp))
+    LoginInputField(
+        label = stringResource(R.string.auth_http_url),
+        placeholder = stringResource(R.string.auth_http_url_hint),
+        icon = Icons.Outlined.KeyboardArrowDown,
+        value = draft.httpUrl,
+        onValueChange = { auth.updateDraft { d -> d.copy(httpUrl = it) } },
+    )
     Spacer(Modifier.height(8.dp))
     LoginInputField(
         label = stringResource(R.string.auth_access_token),
@@ -249,15 +255,6 @@ private fun ServerConfigSection(store: FlareAppStore, draft: com.flare.im.app.co
         icon = Icons.Outlined.KeyboardArrowDown,
         value = draft.accessToken,
         onValueChange = { auth.updateDraft { d -> d.copy(accessToken = it) } },
-    )
-    Spacer(Modifier.height(8.dp))
-    LoginInputField(
-        label = stringResource(R.string.auth_token_secret),
-        placeholder = stringResource(R.string.auth_token_secret_hint),
-        icon = Icons.Outlined.KeyboardArrowDown,
-        value = draft.tokenSecret,
-        onValueChange = { auth.updateDraft { d -> d.copy(tokenSecret = it) } },
-        secret = true,
     )
 }
 

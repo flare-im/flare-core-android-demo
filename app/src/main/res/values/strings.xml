@@ -106,10 +106,10 @@
     <string name="msg_edit_hint">New message text</string>
     <string name="action_confirm">OK</string>
     <string name="composer_replying_to">Replying to %1$s: %2$s</string>
+    <string name="auth_http_url">Gateway HTTP URL</string>
+    <string name="auth_http_url_hint">e.g. http://10.0.2.2:50050 — the SDK issues access tokens from it</string>
     <string name="auth_access_token">Access token (optional)</string>
-    <string name="auth_access_token_hint">Leave empty to sign locally with the token secret below</string>
-    <string name="auth_token_secret">Token secret (optional)</string>
-    <string name="auth_token_secret_hint">Your server\'s signing secret — used to mint a token from the user ID</string>
+    <string name="auth_access_token_hint">Leave empty and the SDK issues one from the gateway and refreshes it; paste a backend-issued token to use it as-is</string>
     <string name="auth_fallback_ws">Fallback (WebSocket)</string>
     <string name="auth_token_rejected">The server rejected the access token: the signing secret or issuer does not match the server, or the token has expired. Check the signing secret and try again.</string>
 </resources>

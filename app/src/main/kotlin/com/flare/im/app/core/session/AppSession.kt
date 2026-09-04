@@ -6,7 +6,6 @@ import com.flare.im.api.FlareImClient
 import com.flare.im.app.core.domain.EventLogEntry
 import com.flare.im.app.core.domain.LoginDraft
 import com.flare.im.listener.EventSubscription
-import com.flare.im.model.command.CoreTokenRequest
 import com.flare.im.model.entity.ViewUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -63,35 +62,18 @@ class AppSession {
         val storeConfigJson = JSONObject(sdkConfig).toString()
         sdk.init(sdkConfig)
 
-        val ttl = draft.tokenTtlSeconds.toLongOrNull() ?: 86_400L
         val userId = draft.userId.trim()
         val tenantId = normalizedTenantId(draft)
-        // 填了现成的接入 token 就直接用，不需要本地持有签名密钥。
+        // 应用托管：高级区填了现成的接入 token 就原样用；SDK 托管：留空，核心向网关签发并自动刷新。
         val pastedToken = draft.accessToken.trim()
-        val token = if (pastedToken.isNotEmpty()) {
-            progress("Using provided access token")
-            pastedToken
-        } else {
-            progress("Generating core token")
-            sdk.generateCoreToken(
-                CoreTokenRequest(
-                    userId = userId,
-                    secret = draft.tokenSecret,
-                    issuer = draft.tokenIssuer,
-                    ttlSecs = ttl,
-                    deviceId = ANDROID_EXAMPLE_DEVICE_ID,
-                    tenantId = tenantId,
-                ),
-            ).token
-        }
 
         progress("Logging in")
         sdk.login(
-            mapOf(
-                "userId" to userId,
-                "token" to token,
-                "storeConfigJson" to storeConfigJson,
-            ),
+            buildMap {
+                put("userId", userId)
+                if (pastedToken.isNotEmpty()) put("token", pastedToken)
+                put("storeConfigJson", storeConfigJson)
+            },
         )
 
         // 配置 SDK 托管的媒体磁盘缓存（LRU + 去重，核心已实现）：设根目录 + 上限，
@@ -114,6 +96,10 @@ class AppSession {
             "dataUrl" to "file://$dataDir",
             "tenantId" to normalizedTenantId(draft),
             "deviceId" to ANDROID_EXAMPLE_DEVICE_ID,
+            "httpUrl" to draft.httpUrl.trim(),
+            // SDK 托管 token：核心向 {httpUrl}/api/v1/auth/tokens 签发、到期前刷新。
+            // 填了 accessToken 时核心会直接用它，不走签发。
+            "auth" to mapOf("tokenEndpoint" to draft.httpUrl.trim()),
             "platform" to "android",
             "runtime" to "compose-example",
         )
@@ -165,20 +151,16 @@ class AppSession {
         val sdk = client ?: return
         val draft = lastDraft ?: return
         runCatching {
-            val ttl = draft.tokenTtlSeconds.toLongOrNull() ?: 86_400L
             val userId = draft.userId.trim()
             val tenantId = normalizedTenantId(draft)
-            val token = sdk.generateCoreToken(
-                CoreTokenRequest(
-                    userId = userId,
-                    secret = draft.tokenSecret,
-                    issuer = draft.tokenIssuer,
-                    ttlSecs = ttl,
-                    deviceId = ANDROID_EXAMPLE_DEVICE_ID,
-                    tenantId = tenantId,
-                ),
-            ).token
-            sdk.connect(mapOf("userId" to userId, "token" to token, "tenantId" to tenantId))
+            val pastedToken = draft.accessToken.trim()
+            sdk.connect(
+                buildMap {
+                    put("userId", userId)
+                    if (pastedToken.isNotEmpty()) put("token", pastedToken)
+                    put("tenantId", tenantId)
+                },
+            )
         }
         refreshConnectionState()
     }

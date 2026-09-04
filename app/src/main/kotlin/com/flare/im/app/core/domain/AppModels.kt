@@ -81,17 +81,13 @@ data class LoginDraft(
     val quicUrl: String = "quic://10.0.2.2:60052",
     val tlsCaCertPath: String = "",
     val tenantId: String = "0",
-    val tokenSecret: String = com.flare.im.app.BuildConfig.DEFAULT_TOKEN_SECRET,
+    /** 网关 HTTP 基址：SDK 托管 token 时向它签发/刷新；也是媒体等 HTTP 接口的基址。 */
+    val httpUrl: String = com.flare.im.app.BuildConfig.DEFAULT_HTTP_URL,
     /**
-     * 可选：直接填服务端签好的接入 token，填了就不再本地自签。
-     *
-     * 只有本地自签这一条路时，这个 app 只能连"自己握有签名密钥"的服务器 ——
-     * 而把签名密钥打进安装包等于让任何拿到它的人伪造任意用户身份。
-     * 仓库自己的 mint_token.py 就是这个立场：密钥留在服务器，只发签好的 token。
+     * 可选：应用托管形态——直接填业务后端签好的接入 token，SDK 原样使用、不做刷新。
+     * 留空则 SDK 托管：向 `httpUrl` 的网关签发并自动刷新。客户端从不持有签名密钥。
      */
     val accessToken: String = com.flare.im.app.BuildConfig.DEFAULT_ACCESS_TOKEN,
-    val tokenIssuer: String = "flare-im-core",
-    val tokenTtlSeconds: String = "3600",
     val dataSubfolder: String = "flare-core-android-app",
 ) {
     /** 当前传输模式下用户可编辑的服务地址。 */

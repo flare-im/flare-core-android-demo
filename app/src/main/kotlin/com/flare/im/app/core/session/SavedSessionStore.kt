@@ -22,7 +22,7 @@ class SavedSessionStore(context: Context) {
             .putString(KEY_QUIC_URL, draft.quicUrl)
             .putString(KEY_TLS_CA_CERT_PATH, draft.tlsCaCertPath)
             .putString(KEY_TENANT_ID, draft.tenantId)
-            .putString(KEY_TOKEN_SECRET, draft.tokenSecret)
+            .putString(KEY_HTTP_URL, draft.httpUrl)
             .apply()
     }
 
@@ -40,7 +40,7 @@ class SavedSessionStore(context: Context) {
             quicUrl = prefs.getString(KEY_QUIC_URL, null)?.takeIf { it.isNotBlank() } ?: defaults.quicUrl,
             tlsCaCertPath = prefs.getString(KEY_TLS_CA_CERT_PATH, null) ?: defaults.tlsCaCertPath,
             tenantId = prefs.getString(KEY_TENANT_ID, null)?.takeIf { it.isNotBlank() } ?: defaults.tenantId,
-            tokenSecret = prefs.getString(KEY_TOKEN_SECRET, null)?.takeIf { it.isNotBlank() } ?: defaults.tokenSecret,
+            httpUrl = prefs.getString(KEY_HTTP_URL, null)?.takeIf { it.isNotBlank() } ?: defaults.httpUrl,
         )
     }
 
@@ -50,7 +50,7 @@ class SavedSessionStore(context: Context) {
 
     private companion object {
         const val KEY_USER_ID = "userId"
-        const val KEY_TOKEN_SECRET = "tokenSecret"
+        const val KEY_HTTP_URL = "httpUrl"
         const val KEY_TRANSPORT_MODE = "transportMode"
         const val KEY_WS_URL = "wsUrl"
         const val KEY_QUIC_URL = "quicUrl"
