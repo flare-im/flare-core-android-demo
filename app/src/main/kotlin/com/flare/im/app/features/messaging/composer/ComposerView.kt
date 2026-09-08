@@ -391,15 +391,15 @@ private fun ComposerFormDialog(op: MessageBuildOp, vm: MessagingViewModel, onDis
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
         title = { Text(spec.title, style = FlareTheme.type.headline) },
         text = {
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(tk.sm)) {
                 spec.fields.forEach { (key, label, _) ->
-                    OutlinedTextField(
-                        value = values[key] ?: "",
-                        onValueChange = { values[key] = it },
-                        label = { Text(label) },
-                        singleLine = key !in multiline,
-                        modifier = Modifier.fillMaxWidth().padding(vertical = tk.xs),
-                    )
+                    com.flare.im.ui.FormField(label = label) {
+                        com.flare.im.ui.Input(
+                            value = values[key] ?: "",
+                            onValueChange = { values[key] = it },
+                            multiline = key in multiline,
+                        )
+                    }
                 }
             }
         },

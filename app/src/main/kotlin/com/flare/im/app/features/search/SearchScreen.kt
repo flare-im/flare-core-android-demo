@@ -3,9 +3,6 @@ package com.flare.im.app.features.search
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -27,9 +24,19 @@ fun SearchScreen(store: FlareAppStore) {
     val results by vm.results.collectAsState()
     Column(Modifier.fillMaxSize().padding(tk.lg)) {
         SectionTitle(stringResource(R.string.nav_search))
-        OutlinedTextField(draft.keyword, { v -> vm.updateDraft { it.copy(keyword = v) } }, label = { Text("Keyword") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+        com.flare.im.ui.FormField(label = stringResource(R.string.chat_search_hint)) {
+            com.flare.im.ui.Input(
+                value = draft.keyword,
+                onValueChange = { v -> vm.updateDraft { it.copy(keyword = v) } },
+                onSubmit = { vm.search() },
+            )
+        }
         Spacer(Modifier.height(tk.sm))
-        Button(onClick = { vm.search() }, colors = ButtonDefaults.buttonColors(containerColor = colors.brand)) { Text(stringResource(R.string.nav_search), color = colors.outgoingText) }
+        com.flare.im.ui.Button(
+            label = stringResource(R.string.nav_search),
+            variant = com.flare.im.ui.FlareButtonVariant.Primary,
+            onClick = { vm.search() },
+        )
         Spacer(Modifier.height(tk.md))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(tk.sm)) {
             items(results, key = { it.appStableId }) { m ->

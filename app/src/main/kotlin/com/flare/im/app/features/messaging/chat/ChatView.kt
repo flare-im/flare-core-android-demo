@@ -8,7 +8,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -86,13 +85,12 @@ private fun InChatSearchSheet(store: FlareAppStore, onDismiss: () -> Unit) {
         Column(Modifier.fillMaxWidth().padding(horizontal = tk.lg).padding(bottom = tk.lg)) {
             Text(stringResource(R.string.chat_search_title), style = FlareTheme.type.headline, color = colors.textPrimary)
             Spacer(Modifier.height(tk.sm))
-            OutlinedTextField(
-                value = draft.keyword,
-                onValueChange = { v -> searchVm.updateDraft { it.copy(keyword = v, conversationScoped = true) } },
-                label = { Text(stringResource(R.string.chat_search_hint)) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            com.flare.im.ui.FormField(label = stringResource(R.string.chat_search_hint)) {
+                com.flare.im.ui.Input(
+                    value = draft.keyword,
+                    onValueChange = { v -> searchVm.updateDraft { it.copy(keyword = v, conversationScoped = true) } },
+                )
+            }
             Spacer(Modifier.height(tk.sm))
             TextButton(onClick = { searchVm.updateDraft { it.copy(conversationScoped = true) }; searchVm.search() }) {
                 Text(stringResource(R.string.chat_search_action), color = colors.brand)

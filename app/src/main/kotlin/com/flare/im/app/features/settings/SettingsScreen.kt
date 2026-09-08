@@ -5,7 +5,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -42,9 +41,9 @@ fun SettingsScreen(store: FlareAppStore) {
         Text("Connection: ${conn.name}", style = FlareTheme.type.callout, color = colors.textSecondary)
         Spacer(Modifier.height(tk.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(tk.sm)) {
-            OutlinedButton(onClick = { vm.refreshDiagnostics() }) { Text(stringResource(R.string.settings_refresh_diagnostics)) }
-            OutlinedButton(onClick = { vm.logout() }) { Text(stringResource(R.string.action_logout)) }
-            OutlinedButton(onClick = { vm.dispose() }) { Text(stringResource(R.string.settings_dispose)) }
+            com.flare.im.ui.Button(label = stringResource(R.string.settings_refresh_diagnostics), variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = { vm.refreshDiagnostics() })
+            com.flare.im.ui.Button(label = stringResource(R.string.action_logout), variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = { vm.logout() })
+            com.flare.im.ui.Button(label = stringResource(R.string.settings_dispose), variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = { vm.dispose() })
         }
 
         Spacer(Modifier.height(tk.md))
@@ -57,12 +56,12 @@ fun SettingsScreen(store: FlareAppStore) {
         )
         Row(horizontalArrangement = Arrangement.spacedBy(tk.sm), modifier = Modifier.padding(vertical = tk.sm)) {
             listOf(128L, 256L, 512L).forEach { mb ->
-                OutlinedButton(onClick = { vm.setCacheMaxBytes(mb * 1024 * 1024) }) { Text("${mb}MB") }
+                com.flare.im.ui.Button(label = "${mb}MB", variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = { vm.setCacheMaxBytes(mb * 1024 * 1024) })
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(tk.sm)) {
-            OutlinedButton(onClick = { vm.refreshCacheStats() }) { Text(stringResource(R.string.settings_cache_refresh)) }
-            OutlinedButton(onClick = { vm.clearCache() }) { Text(stringResource(R.string.settings_cache_clear)) }
+            com.flare.im.ui.Button(label = stringResource(R.string.settings_cache_refresh), variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = { vm.refreshCacheStats() })
+            com.flare.im.ui.Button(label = stringResource(R.string.settings_cache_clear), variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = { vm.clearCache() })
         }
     }
 }
