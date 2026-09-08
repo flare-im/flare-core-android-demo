@@ -271,23 +271,28 @@ private fun MessageDeliveryStatus(
     val colors = FlareTheme.colors
     val glyph = 14.dp
     val onBubbleTint = colors.outgoingText.copy(alpha = 0.9f)
+    // contentDescription 走资源；semantics {} 是非 @Composable 作用域，须先在此提前取值。
+    val descSending = stringResource(R.string.msg_status_sending)
+    val descFailed = stringResource(R.string.msg_status_failed_retry)
+    val descRead = stringResource(R.string.msg_status_read)
+    val descDelivered = stringResource(R.string.msg_status_delivered)
     when (state) {
         MessageDeliveryState.NONE -> Unit
         MessageDeliveryState.SENDING -> CircularProgressIndicator(
             strokeWidth = 1.5.dp,
             color = if (onBubble) onBubbleTint else colors.textTertiary,
-            modifier = Modifier.size(glyph).semantics { contentDescription = "发送中" },
+            modifier = Modifier.size(glyph).semantics { contentDescription = descSending },
         )
         MessageDeliveryState.FAILED -> Icon(
             Icons.Default.Warning,
-            contentDescription = "发送失败，点击重试",
+            contentDescription = descFailed,
             tint = colors.danger,
             modifier = Modifier.size(glyph).clickable { onRetry() },
         )
         MessageDeliveryState.DELIVERED, MessageDeliveryState.READ -> Row(
             horizontalArrangement = Arrangement.spacedBy((-5).dp),
             modifier = Modifier.semantics {
-                contentDescription = if (state == MessageDeliveryState.READ) "已读" else "已送达"
+                contentDescription = if (state == MessageDeliveryState.READ) descRead else descDelivered
             },
         ) {
             val tint = when {

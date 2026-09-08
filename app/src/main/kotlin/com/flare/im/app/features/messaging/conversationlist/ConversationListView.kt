@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
@@ -61,26 +59,37 @@ fun ConversationListScreen(store: FlareAppStore) {
                 }
             }
         }
-        Row(Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = tk.lg).padding(bottom = tk.sm), horizontalArrangement = Arrangement.spacedBy(tk.sm)) {
-            ConversationFilter.entries.forEach { f ->
-                FilterChip(
-                    selected = filter == f,
-                    onClick = { store.environment.setFilter(f); vm.refreshConversations() },
-                    label = { Text(stringResource(f.titleRes), style = FlareTheme.type.caption) },
-                    colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colors.brandSoft, selectedLabelColor = colors.brand),
-                )
-            }
+        val filterOptions = ConversationFilter.entries.map { f ->
+            com.flare.im.ui.FlareFilterTabOption(value = f.name, label = stringResource(f.titleRes))
+        }
+        Box(Modifier.padding(horizontal = tk.lg).padding(bottom = tk.sm)) {
+            com.flare.im.ui.FilterTabs(
+                options = filterOptions,
+                selected = filter.name,
+                onSelect = { value ->
+                    store.environment.setFilter(ConversationFilter.valueOf(value)); vm.refreshConversations()
+                },
+            )
         }
         HorizontalDivider(color = colors.hairline)
-        if (conversations.isEmpty()) {
-            EmptyState(stringResource(R.string.conversations_empty_title), stringResource(R.string.conversations_empty_message))
-        } else {
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(conversations, key = { it.conversationId }) { c -> ConversationRow(store, c) }
-            }
-        }
+        // 容器收敛到 kit host-rows 变体：统一空态/加载 + LazyColumn 外壳，
+        // 每行仍由 app 的 ConversationRow 构建（保留点击/长按等附能）。
+        com.flare.im.ui.ConversationListContainer(
+            items = conversations,
+            key = { it.conversationId },
+            empty = {
+                EmptyState(
+                    stringResource(R.string.conversations_empty_title),
+                    stringResource(R.string.conversations_empty_message),
+                )
+            },
+        ) { c -> ConversationRow(store, c) }
     }
 }
+
+/** 非 @Composable 处的运行时中英切换(时间/标签)。@Composable 处一律用 stringResource。 */
+private fun tr(zh: String, en: String): String =
+    if (java.util.Locale.getDefault().language.equals("zh", ignoreCase = true)) zh else en
 
 /** Feishu-style relative time label for the inbox row (HH:mm today / Yesterday / M/d / yyyy/M/d). */
 private fun conversationTimeLabel(millis: Long): String {
@@ -94,7 +103,7 @@ private fun conversationTimeLabel(millis: Long): String {
     val loc = java.util.Locale.getDefault()
     return when {
         year == nowYear && doy == nowDoy -> java.text.SimpleDateFormat("HH:mm", loc).format(cal.time)
-        year == nowYear && doy == nowDoy - 1 -> "Yesterday"
+        year == nowYear && doy == nowDoy - 1 -> tr("昨天", "Yesterday")
         year == nowYear -> java.text.SimpleDateFormat("M/d", loc).format(cal.time)
         else -> java.text.SimpleDateFormat("yyyy/M/d", loc).format(cal.time)
     }
@@ -103,13 +112,13 @@ private fun conversationTimeLabel(millis: Long): String {
 /** Inline title tags for a conversation row (Group / Bot / Official), mapped into the kit. */
 private fun conversationRowTags(c: AppConversation): List<com.flare.im.ui.ConversationRowTag> = buildList {
     if (c.core.conversationType == com.flare.im.model.common.enums.ConversationType.GROUP) {
-        add(com.flare.im.ui.ConversationRowTag("Group", com.flare.im.ui.FlareTagTone.Info))
+        add(com.flare.im.ui.ConversationRowTag(tr("群聊", "Group"), com.flare.im.ui.FlareTagTone.Info))
     }
     c.core.role?.trim()?.takeIf { it.isNotEmpty() }?.let { role ->
         val lower = role.lowercase()
         val label = when {
-            lower.contains("bot") || lower.contains("robot") -> "Bot"
-            lower.contains("official") -> "Official"
+            lower.contains("bot") || lower.contains("robot") -> tr("机器人", "Bot")
+            lower.contains("official") -> tr("官方", "Official")
             else -> role.take(10)
         }
         add(com.flare.im.ui.ConversationRowTag(label, com.flare.im.ui.FlareTagTone.Warning))
@@ -140,10 +149,12 @@ private fun ConversationRow(store: FlareAppStore, c: AppConversation) {
         )
         DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
             listOf(
-                (if (c.core.isPinned) "Unpin" else "Pin") to "pin",
-                (if (c.core.isMuted) "Unmute" else "Mute") to "mute",
-                (if (c.core.isArchived) "Unarchive" else "Archive") to "archive",
-                "Mark unread" to "unread", "Clear local" to "clear", "Delete" to "delete",
+                (if (c.core.isPinned) stringResource(R.string.conv_unpin) else stringResource(R.string.conv_pin)) to "pin",
+                (if (c.core.isMuted) stringResource(R.string.conv_unmute) else stringResource(R.string.conv_mute)) to "mute",
+                (if (c.core.isArchived) stringResource(R.string.conv_unarchive) else stringResource(R.string.conv_archive)) to "archive",
+                stringResource(R.string.conv_mark_unread) to "unread",
+                stringResource(R.string.conv_clear_local) to "clear",
+                stringResource(R.string.conv_delete) to "delete",
             ).forEach { (label, action) ->
                 DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; vm.conversationAction(action, c) })
             }
@@ -170,15 +181,26 @@ private fun StartConversationDialog(store: FlareAppStore, onDismiss: () -> Unit)
         title = { Text(stringResource(R.string.conversations_start), style = FlareTheme.type.headline) },
         text = {
             Column {
-                Row(horizontalArrangement = Arrangement.spacedBy(tk.sm)) {
-                    FilterChip(!group, { group = false }, { Text("Direct") })
-                    FilterChip(group, { group = true }, { Text("Group") })
-                }
+                com.flare.im.ui.SegmentedControl(
+                    options = listOf(stringResource(R.string.conv_direct), stringResource(R.string.conv_group)),
+                    selectedIndex = if (group) 1 else 0,
+                    onSelect = { i -> group = (i == 1) },
+                )
                 Spacer(Modifier.height(tk.sm))
                 if (group) {
-                    OutlinedTextField(draft.groupUserIds, { v -> vm.updateStartDraft { it.copy(groupUserIds = v) } }, label = { Text("Member IDs (comma-separated)") }, modifier = Modifier.fillMaxWidth())
+                    com.flare.im.ui.FormField(label = stringResource(R.string.conv_member_ids)) {
+                        com.flare.im.ui.Input(
+                            value = draft.groupUserIds,
+                            onValueChange = { v -> vm.updateStartDraft { it.copy(groupUserIds = v) } },
+                        )
+                    }
                 } else {
-                    OutlinedTextField(draft.peerUserId, { v -> vm.updateStartDraft { it.copy(peerUserId = v) } }, label = { Text("Peer ID") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    com.flare.im.ui.FormField(label = stringResource(R.string.conv_peer_id)) {
+                        com.flare.im.ui.Input(
+                            value = draft.peerUserId,
+                            onValueChange = { v -> vm.updateStartDraft { it.copy(peerUserId = v) } },
+                        )
+                    }
                 }
             }
         },

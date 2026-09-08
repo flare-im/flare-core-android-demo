@@ -147,7 +147,7 @@ class SdkLabViewModel(
             it.user.upsertUserProfiles(
                 mapOf(
                     "profiles" to listOf(
-                        mapOf("userId" to uid, "nickname" to "SDK Lab 昵称", "avatarUrl" to ""),
+                        mapOf("userId" to uid, "nickname" to "SDK Lab nickname", "avatarUrl" to ""),
                     ),
                 ),
             )

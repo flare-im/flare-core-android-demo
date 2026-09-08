@@ -22,9 +22,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.flare.im.app.R
 import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.app.core.platform.FlareLocalImage
 import com.flare.im.app.core.designsystem.FlareTheme
@@ -74,7 +76,7 @@ internal fun MediaPreviewDialog(path: String, onDismiss: () -> Unit) {
         ) {
             FlareLocalImage(
                 path = path,
-                contentDescription = "Preview",
+                contentDescription = stringResource(R.string.msg_preview_a11y),
                 modifier = Modifier.fillMaxWidth().graphicsLayer {
                     scaleX = scale; scaleY = scale; translationX = offset.x; translationY = offset.y
                 },

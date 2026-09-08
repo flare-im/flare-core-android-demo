@@ -1,26 +1,21 @@
 package com.flare.im.app.features.auth
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Login
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Info
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -33,33 +28,59 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.asAndroidPath
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.PI
+import kotlin.math.tan
 import com.flare.im.app.R
 import com.flare.im.app.core.FlareAppStore
-import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.LoginTransportMode
+import com.flare.im.ui.FlareBrandLogo
+import com.flare.im.ui.FlareBrandLogoVariant
+import com.flare.im.ui.FlareSizes
+import com.flare.im.ui.FormField
+import com.flare.im.ui.Input
+import com.flare.im.ui.SegmentedControl
+import com.flare.im.ui.flareColors
 
-// 登录屏：版式复刻 iOS LoginView —— 渐变品牌头(网格背景 + logo) + 白底表单
-// (胶囊输入 + 传输模式菜单 + 服务地址 + 错误横幅 + 渐变登录键)。
-// 状态/绑定沿用 AuthViewModel；仅重做视觉。
+// 登录屏:统一登录规格 v2。视觉取自 kit 设计 token,**表单用 kit 组件搭建**
+// (FormField + Input + SegmentedControl,来自 com.flare.im.ui)。
+// 字段:用户 ID + 协议三选(WebSocket/QUIC/竞速) + WebSocket URL + Gateway URL + QUIC URL。
+// 不再有 access token 输入(SDK 托管:核心向 Gateway 签发并自动刷新)。
+// 状态/绑定沿用 AuthViewModel(LoginDraft 已含独立 wsUrl/quicUrl/httpUrl)。
 
-private val HeaderTop = Color(0xFF6419C2)
-private val HeaderMid = Color(0xFF7D3BED)
-private val HeaderBottom = Color(0xFF6466F0)
-private val ButtonEnd = Color(0xFF8C29EB)
-private val FieldBg = Color(0xFFF2F2F5)
+/** 登录页专用布局常量(不属于通用 token 标尺的展示尺寸;四端保持同值)。 */
+private object LoginSpec {
+    val logoSize = 64.dp
+    val logoIcon = 33.dp
+    val buttonHeight = 48.dp
+    val gridStep = 40.dp
+    val formMaxWidth = 430.dp
+    val titleSize = 24.sp
+    val welcomeSize = 22.sp
+}
+
+/** 协议三选顺序(与 SegmentedControl 索引对应)。 */
+private val transportOrder = listOf(
+    LoginTransportMode.WebSocket,
+    LoginTransportMode.Quic,
+    LoginTransportMode.Race,
+)
 
 @Composable
 fun LoginScreen(store: FlareAppStore) {
@@ -68,6 +89,7 @@ fun LoginScreen(store: FlareAppStore) {
     val validation by auth.validationMessage.collectAsState()
     val error by auth.lastError.collectAsState()
     val busy by auth.isBusy.collectAsState()
+    val kc = flareColors()
 
     // 紫色品牌头铺到状态栏下：状态栏图标改浅色(白)，离开登录页恢复。
     val view = LocalView.current
@@ -79,35 +101,39 @@ fun LoginScreen(store: FlareAppStore) {
         onDispose { if (previous != null) controller.isAppearanceLightStatusBars = previous }
     }
 
-    Box(Modifier.fillMaxSize().background(Color.White)) {
+    Box(Modifier.fillMaxSize().background(kc.bgPrimary)) {
         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
             BrandHeader()
             Column(
-                Modifier.widthIn(max = 430.dp).align(Alignment.CenterHorizontally)
+                Modifier.widthIn(max = LoginSpec.formMaxWidth).align(Alignment.CenterHorizontally)
                     .fillMaxWidth().navigationBarsPadding()
-                    .padding(horizontal = 20.dp).padding(top = 30.dp, bottom = 42.dp),
+                    .padding(horizontal = FlareSizes.spacingXl).padding(top = 30.dp, bottom = 42.dp),
+                verticalArrangement = Arrangement.spacedBy(FlareSizes.spacingLg),
             ) {
                 LoginForm(store, draft, validation, error, busy)
             }
         }
         if (busy) {
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.06f)), Alignment.Center) {
-                CircularProgressIndicator(color = HeaderMid)
+                CircularProgressIndicator(color = kc.primary)
             }
         }
     }
 }
 
-/** 渐变品牌头：对角渐变 + 细网格 + 白色圆角 logo + 品牌名/标语。 */
+/** 渐变品牌头：对角品牌渐变 + 细网格 + F logo + 品牌名/标语。 */
 @Composable
 private fun BrandHeader() {
+    val kc = flareColors()
+    val screenH = LocalConfiguration.current.screenHeightDp
+    val headerH = (screenH * 0.32f).coerceIn(252f, 320f).dp
     Box(
-        Modifier.fillMaxWidth().heightIn(min = 280.dp)
-            .background(Brush.linearGradient(listOf(HeaderTop, HeaderMid, HeaderBottom), start = Offset.Zero, end = Offset.Infinite)),
+        Modifier.fillMaxWidth().heightIn(min = headerH)
+            .background(Brush.linearGradient(listOf(kc.primaryActive, kc.primary, kc.info), start = Offset.Zero, end = Offset.Infinite)),
         Alignment.Center,
     ) {
         Canvas(Modifier.matchParentSize()) {
-            val step = 40.dp.toPx()
+            val step = LoginSpec.gridStep.toPx()
             val line = Color.White.copy(alpha = 0.11f)
             var x = 0f
             while (x <= size.width) { drawLine(line, Offset(x, 0f), Offset(x, size.height), 1f); x += step }
@@ -115,19 +141,13 @@ private fun BrandHeader() {
             while (y <= size.height) { drawLine(line, Offset(0f, y), Offset(size.width, y), 1f); y += step }
         }
         Column(
-            Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(vertical = 24.dp),
+            Modifier.windowInsetsPadding(WindowInsets.statusBars).padding(vertical = FlareSizes.spacing2xl),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(FlareSizes.spacingLg),
         ) {
-            Box(
-                Modifier.size(64.dp).shadow(16.dp, RoundedCornerShape(18.dp))
-                    .clip(RoundedCornerShape(18.dp)).background(Color.White),
-                Alignment.Center,
-            ) {
-                Icon(Icons.Outlined.ChatBubbleOutline, null, tint = HeaderMid, modifier = Modifier.size(33.dp))
-            }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(stringResource(R.string.brand_name), color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Black)
+            FlareBrandLogo(size = LoginSpec.logoSize, variant = FlareBrandLogoVariant.Plate)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(FlareSizes.spacingXs)) {
+                Text(stringResource(R.string.brand_name), color = Color.White, fontSize = LoginSpec.titleSize, fontWeight = FontWeight.Black)
                 Text(stringResource(R.string.brand_tagline), color = Color.White.copy(alpha = 0.88f), fontSize = 14.sp)
             }
         }
@@ -142,172 +162,106 @@ private fun LoginForm(
     error: String?,
     busy: Boolean,
 ) {
-    val colors = FlareTheme.colors
+    val kc = flareColors()
     val auth = store.authViewModel
 
-    Text(stringResource(R.string.auth_welcome), style = FlareTheme.type.title, color = colors.textPrimary)
-    Spacer(Modifier.height(8.dp))
-    Text(stringResource(R.string.auth_enter_id), fontSize = 14.sp, color = colors.textSecondary)
-    Spacer(Modifier.height(28.dp))
+    Text(stringResource(R.string.auth_welcome), fontSize = LoginSpec.welcomeSize, fontWeight = FontWeight.Bold, color = kc.textPrimary)
+    Text(stringResource(R.string.auth_enter_id), fontSize = 14.sp, color = kc.textSecondary)
 
-    LoginInputField(
-        label = stringResource(R.string.auth_user_id),
-        placeholder = stringResource(R.string.auth_user_id_placeholder),
-        icon = Icons.Outlined.Person,
-        value = draft.userId,
-        onValueChange = { auth.updateDraft { d -> d.copy(userId = it) }; auth.clearValidation() },
-    )
-    Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Icon(Icons.Outlined.Info, null, tint = colors.brand, modifier = Modifier.size(14.dp).padding(top = 1.dp))
-        Text(stringResource(R.string.auth_id_hint), fontSize = 12.sp, color = colors.textTertiary)
+    FormField(label = stringResource(R.string.auth_user_id), hint = stringResource(R.string.auth_id_hint)) {
+        Input(
+            value = draft.userId,
+            onValueChange = { auth.updateDraft { d -> d.copy(userId = it) }; auth.clearValidation() },
+            placeholder = stringResource(R.string.auth_user_id_placeholder),
+        )
     }
 
     validation?.let {
-        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Icon(Icons.Outlined.ErrorOutline, null, tint = colors.danger, modifier = Modifier.size(14.dp))
-            Text(it, fontSize = 12.sp, color = colors.danger)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FlareSizes.spacingSm)) {
+            Icon(Icons.Outlined.ErrorOutline, null, tint = kc.error, modifier = Modifier.size(14.dp))
+            Text(it, fontSize = 12.sp, color = kc.error)
         }
     }
 
-    Spacer(Modifier.height(22.dp))
-    ServerConfigSection(store, draft)
+    val protocolIndex = transportOrder.indexOf(draft.transportMode).coerceAtLeast(0)
+    val transportLabels = listOf("WebSocket", "QUIC", stringResource(R.string.auth_transport_race))
+    FormField(label = stringResource(R.string.auth_protocol)) {
+        SegmentedControl(
+            options = transportLabels,
+            selectedIndex = protocolIndex,
+            onSelect = { auth.updateDraft { d -> d.copy(transportMode = transportOrder[it]) } },
+        )
+    }
+
+    ServerAddressSection(store, draft)
 
     error?.let { raw ->
         val it = if (LoginErrorText.isTokenRejected(raw)) stringResource(R.string.auth_token_rejected) else raw
-        Spacer(Modifier.height(16.dp))
         LoginErrorBanner(it)
     }
 
-    Spacer(Modifier.height(24.dp))
     GradientSignInButton(busy = busy, enabled = !busy) { auth.submit() }
 
-    Spacer(Modifier.height(20.dp))
     Text(
         stringResource(R.string.auth_footer),
         fontSize = 12.sp,
-        color = colors.textTertiary,
+        color = kc.textTertiary,
         modifier = Modifier.fillMaxWidth(),
-        style = LocalTextStyle.current.copy(textAlign = androidx.compose.ui.text.style.TextAlign.Center),
+        textAlign = TextAlign.Center,
     )
 }
 
-/** 服务地址区：标题 + 传输模式下拉 + 可见地址(+ Race 次地址)。 */
+/** 服务器地址区：默认收起，点击展开 WebSocket / Gateway / QUIC URL。 */
 @Composable
-private fun ServerConfigSection(store: FlareAppStore, draft: com.flare.im.app.core.domain.LoginDraft) {
-    val colors = FlareTheme.colors
+private fun ServerAddressSection(store: FlareAppStore, draft: com.flare.im.app.core.domain.LoginDraft) {
+    val kc = flareColors()
     val auth = store.authViewModel
-    var menu by remember { mutableStateOf(false) }
-
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(R.string.auth_server_optional), fontSize = 14.sp, color = colors.textSecondary)
-        Spacer(Modifier.weight(1f))
-        Box {
-            Row(
-                Modifier.clip(RoundedCornerShape(8.dp)).clickable { menu = true }.padding(horizontal = 6.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(draft.transportMode.title, style = FlareTheme.type.callout, color = colors.textPrimary)
-                Icon(Icons.Outlined.KeyboardArrowDown, null, tint = colors.textSecondary, modifier = Modifier.size(16.dp))
-            }
-            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-                LoginTransportMode.entries.forEach { mode ->
-                    DropdownMenuItem(text = { Text(mode.title) }, onClick = {
-                        menu = false
-                        auth.updateDraft { it.copy(transportMode = mode) }
-                    })
-                }
-            }
-        }
-    }
-    Spacer(Modifier.height(12.dp))
-    LoginInputField(
-        label = stringResource(R.string.auth_server_optional),
-        placeholder = draft.visibleServerAddress,
-        icon = Icons.Outlined.KeyboardArrowDown,
-        value = draft.visibleServerAddress,
-        onValueChange = { auth.updateDraft { d -> d.withVisibleServerAddress(it) } },
-    )
-    draft.secondaryServerAddress?.let { secondary ->
-        Spacer(Modifier.height(8.dp))
-        LoginInputField(
-            label = stringResource(R.string.auth_fallback_ws),
-            placeholder = secondary,
-            icon = Icons.Outlined.KeyboardArrowDown,
-            value = secondary,
-            onValueChange = { auth.updateDraft { d -> d.withSecondaryServerAddress(it) } },
-        )
-    }
-    // 两条路：应用托管——填了业务后端签好的接入 token 就原样用；
-    // SDK 托管——留空，核心向下面这个网关地址签发并自动刷新。客户端从不持有签名密钥。
-    Spacer(Modifier.height(8.dp))
-    LoginInputField(
-        label = stringResource(R.string.auth_http_url),
-        placeholder = stringResource(R.string.auth_http_url_hint),
-        icon = Icons.Outlined.KeyboardArrowDown,
-        value = draft.httpUrl,
-        onValueChange = { auth.updateDraft { d -> d.copy(httpUrl = it) } },
-    )
-    Spacer(Modifier.height(8.dp))
-    LoginInputField(
-        label = stringResource(R.string.auth_access_token),
-        placeholder = stringResource(R.string.auth_access_token_hint),
-        icon = Icons.Outlined.KeyboardArrowDown,
-        value = draft.accessToken,
-        onValueChange = { auth.updateDraft { d -> d.copy(accessToken = it) } },
-    )
-}
-
-/** 胶囊输入：标签 + 行内图标 + 文本框（灰底圆角，无描边）。 */
-@Composable
-private fun LoginInputField(
-    label: String,
-    placeholder: String,
-    icon: ImageVector,
-    value: String,
-    onValueChange: (String) -> Unit,
-    /** 密钥类输入按密码遮罩，与 kit web 端 type="password" 一致。 */
-    secret: Boolean = false,
-) {
-    val colors = FlareTheme.colors
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(label, fontSize = 14.sp, color = colors.textPrimary)
+    var open by remember { mutableStateOf(false) }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(FlareSizes.radiusLg))
+            .background(kc.bgSecondary)
+            .border(1.dp, kc.borderPrimary, RoundedCornerShape(FlareSizes.radiusLg))
+            .padding(FlareSizes.spacingLg),
+        verticalArrangement = Arrangement.spacedBy(FlareSizes.spacingLg),
+    ) {
         Row(
-            Modifier.fillMaxWidth().height(48.dp).clip(CircleShape).background(FieldBg).padding(horizontal = 16.dp),
+            Modifier.fillMaxWidth().clickable { open = !open },
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(FlareSizes.spacingSm),
         ) {
-            Icon(icon, null, tint = colors.textTertiary, modifier = Modifier.size(18.dp))
-            Box(Modifier.weight(1f)) {
-                if (value.isEmpty()) {
-                    Text(placeholder, style = FlareTheme.type.body, color = colors.textTertiary)
+            Icon(Icons.Outlined.Storage, null, tint = kc.textSecondary, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.auth_server_address), fontSize = 14.sp, fontWeight = FontWeight.Medium, color = kc.textPrimary)
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.Outlined.ExpandMore, null, tint = kc.textTertiary, modifier = Modifier.size(20.dp).rotate(if (open) 180f else 0f))
+        }
+        AnimatedVisibility(open) {
+            Column(verticalArrangement = Arrangement.spacedBy(FlareSizes.spacingLg)) {
+                FormField(label = stringResource(R.string.auth_ws_url)) {
+                    Input(value = draft.wsUrl, onValueChange = { auth.updateDraft { d -> d.copy(wsUrl = it) } }, placeholder = "ws://host:60051/ws")
                 }
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    singleLine = true,
-                    textStyle = FlareTheme.type.body.copy(color = colors.textPrimary),
-                    cursorBrush = SolidColor(colors.brand),
-                    visualTransformation = if (secret) PasswordVisualTransformation() else VisualTransformation.None,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                FormField(label = stringResource(R.string.auth_gateway_url), hint = stringResource(R.string.auth_gateway_hint)) {
+                    Input(value = draft.httpUrl, onValueChange = { auth.updateDraft { d -> d.copy(httpUrl = it) } }, placeholder = "http://host:50050")
+                }
+                FormField(label = stringResource(R.string.auth_quic_url)) {
+                    Input(value = draft.quicUrl, onValueChange = { auth.updateDraft { d -> d.copy(quicUrl = it) } }, placeholder = "quic://host:60052")
+                }
             }
         }
     }
 }
 
-/** 渐变登录按钮（48 高，圆角；禁用降透明度）。 */
+/** 渐变登录按钮（48 高，radiusLg 圆角；禁用降透明度）。 */
 @Composable
 private fun GradientSignInButton(busy: Boolean, enabled: Boolean, onClick: () -> Unit) {
-    val colors = FlareTheme.colors
+    val kc = flareColors()
     Box(
-        Modifier.fillMaxWidth().height(48.dp).clip(RoundedCornerShape(10.dp))
-            .background(Brush.horizontalGradient(listOf(colors.brand, ButtonEnd)))
+        Modifier.fillMaxWidth().height(LoginSpec.buttonHeight).clip(RoundedCornerShape(FlareSizes.radiusLg))
+            .background(Brush.horizontalGradient(listOf(kc.primary, kc.info)))
             .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .alpha(if (enabled) 1f else 0.55f),
         Alignment.Center,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(FlareSizes.spacingSm)) {
             Icon(Icons.AutoMirrored.Outlined.Login, null, tint = Color.White, modifier = Modifier.size(18.dp))
             Text(
                 stringResource(if (busy) R.string.auth_signing_in else R.string.auth_sign_in),
@@ -317,18 +271,18 @@ private fun GradientSignInButton(busy: Boolean, enabled: Boolean, onClick: () ->
     }
 }
 
-/** 登录失败横幅：警告图标 + 标题 + 详情，danger 淡底圆角。 */
+/** 登录失败横幅：警告图标 + 标题 + 详情，error 淡底圆角。 */
 @Composable
 private fun LoginErrorBanner(message: String) {
-    val colors = FlareTheme.colors
+    val kc = flareColors()
     Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp)).background(colors.danger.copy(alpha = 0.11f)).padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(FlareSizes.radiusLg)).background(kc.error.copy(alpha = 0.11f)).padding(FlareSizes.spacingMd),
+        horizontalArrangement = Arrangement.spacedBy(FlareSizes.spacingMd),
     ) {
-        Icon(Icons.Outlined.ErrorOutline, null, tint = colors.danger, modifier = Modifier.size(18.dp).padding(top = 1.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.auth_error_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = colors.textPrimary)
-            Text(message, fontSize = 12.sp, color = colors.textSecondary, maxLines = 3)
+        Icon(Icons.Outlined.ErrorOutline, null, tint = kc.error, modifier = Modifier.size(18.dp).padding(top = 1.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(FlareSizes.spacingXs)) {
+            Text(stringResource(R.string.auth_error_title), fontSize = 13.sp, fontWeight = FontWeight.Bold, color = kc.textPrimary)
+            Text(message, fontSize = 12.sp, color = kc.textSecondary, maxLines = 3)
         }
     }
 }

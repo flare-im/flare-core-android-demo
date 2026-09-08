@@ -143,7 +143,7 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
                         IconButton(onClick = { submitComposer() }) {
                             Icon(
                                 Icons.AutoMirrored.Outlined.Send,
-                                contentDescription = "发送",
+                                contentDescription = stringResource(R.string.composer_send),
                                 tint = colors.brand,
                             )
                         }
@@ -169,15 +169,15 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
             HorizontalDivider(thickness = 0.5.dp, color = colors.hairline)
             // 第 2 行：6 槽均分图标工具栏。
             Row(Modifier.fillMaxWidth().padding(top = tk.xs), verticalAlignment = Alignment.CenterVertically) {
-                ComposerToolbarIcon(Icons.Outlined.EmojiEmotions, "表情/贴纸", Modifier.weight(1f), colors.textSecondary) {
+                ComposerToolbarIcon(Icons.Outlined.EmojiEmotions, stringResource(R.string.composer_emoji_sticker), Modifier.weight(1f), colors.textSecondary) {
                     emojiPanel = !emojiPanel
                 }
-                ComposerToolbarIcon(Icons.Outlined.AlternateEmail, "@提及", Modifier.weight(1f), colors.textSecondary) {
+                ComposerToolbarIcon(Icons.Outlined.AlternateEmail, stringResource(R.string.composer_mention), Modifier.weight(1f), colors.textSecondary) {
                     composer = composerInsert(composer, "@")
                 }
                 ComposerToolbarIcon(
                     if (recording) Icons.Filled.Stop else Icons.Outlined.MicNone,
-                    "语音",
+                    stringResource(R.string.composer_voice),
                     Modifier.weight(1f),
                     if (recording) colors.danger else colors.textSecondary,
                 ) {
@@ -189,12 +189,12 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
                         micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
                     }
                 }
-                ComposerToolbarIcon(Icons.Outlined.Image, "图片", Modifier.weight(1f), colors.textSecondary) {
+                ComposerToolbarIcon(Icons.Outlined.Image, stringResource(R.string.composer_image), Modifier.weight(1f), colors.textSecondary) {
                     imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                 }
                 ComposerToolbarIcon(
                     Icons.AutoMirrored.Outlined.Article,
-                    "富文本",
+                    stringResource(R.string.composer_richtext),
                     Modifier.weight(1f),
                     if (richMode) colors.brand else colors.textSecondary,
                 ) {
@@ -203,7 +203,7 @@ fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
                 Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
                     ComposerToolbarIcon(
                         if (builderMenu) Icons.Outlined.Close else Icons.Outlined.Add,
-                        "更多功能",
+                        stringResource(R.string.composer_more),
                         Modifier,
                         colors.textSecondary,
                     ) { builderMenu = true }
@@ -277,14 +277,14 @@ private fun ComposerRichFormatStrip(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = tk.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ComposerFormatButton(Icons.Outlined.FormatBold, "粗体", tint) { onApply { composerWrap(it, "**", "**") } }
-        ComposerFormatButton(Icons.Outlined.FormatItalic, "斜体", tint) { onApply { composerWrap(it, "*", "*") } }
-        ComposerFormatButton(Icons.Outlined.FormatStrikethrough, "删除线", tint) { onApply { composerWrap(it, "~~", "~~") } }
-        ComposerFormatButton(Icons.Outlined.Code, "行内代码", tint) { onApply { composerWrap(it, "`", "`") } }
-        ComposerFormatButton(Icons.Outlined.Title, "标题", tint) { onApply { composerPrefixLine(it, "## ") } }
-        ComposerFormatButton(Icons.Outlined.FormatQuote, "引用", tint) { onApply { composerPrefixLine(it, "> ") } }
-        ComposerFormatButton(Icons.AutoMirrored.Outlined.FormatListBulleted, "无序列表", tint) { onApply { composerPrefixLine(it, "- ") } }
-        ComposerFormatButton(Icons.Outlined.FormatListNumbered, "有序列表", tint) { onApply { composerPrefixLine(it, "1. ") } }
+        ComposerFormatButton(Icons.Outlined.FormatBold, stringResource(R.string.fmt_bold), tint) { onApply { composerWrap(it, "**", "**") } }
+        ComposerFormatButton(Icons.Outlined.FormatItalic, stringResource(R.string.fmt_italic), tint) { onApply { composerWrap(it, "*", "*") } }
+        ComposerFormatButton(Icons.Outlined.FormatStrikethrough, stringResource(R.string.fmt_strike), tint) { onApply { composerWrap(it, "~~", "~~") } }
+        ComposerFormatButton(Icons.Outlined.Code, stringResource(R.string.fmt_code), tint) { onApply { composerWrap(it, "`", "`") } }
+        ComposerFormatButton(Icons.Outlined.Title, stringResource(R.string.fmt_heading), tint) { onApply { composerPrefixLine(it, "## ") } }
+        ComposerFormatButton(Icons.Outlined.FormatQuote, stringResource(R.string.fmt_quote), tint) { onApply { composerPrefixLine(it, "> ") } }
+        ComposerFormatButton(Icons.AutoMirrored.Outlined.FormatListBulleted, stringResource(R.string.fmt_bullet), tint) { onApply { composerPrefixLine(it, "- ") } }
+        ComposerFormatButton(Icons.Outlined.FormatListNumbered, stringResource(R.string.fmt_ordered), tint) { onApply { composerPrefixLine(it, "1. ") } }
     }
 }
 

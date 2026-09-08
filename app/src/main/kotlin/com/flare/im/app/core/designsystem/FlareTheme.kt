@@ -16,10 +16,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.flare.im.ui.FlareColors as KitColors
+import com.flare.im.ui.FlareSizes
 
 // FlareTheme — Compose 设计系统（品牌锁定，关闭 dynamic-color）。
-// 颜色经 FlareColors（双主题），间距/圆角/字体经 FlareTokens（与主题无关）。
-// 视图通过 `FlareTheme.colors` / `FlareTheme.tokens` 读取，替代散落的魔法数字。
+// 颜色/圆角**委托给 kit 设计 token**(com.flare.im.ui.FlareColors/FlareSizes,
+// 源自 flare-im-design/tokens/tokens.json),不再持有并行硬编码值。视图仍通过
+// `FlareTheme.colors` / `FlareTheme.tokens` 读取,值统一收敛到 kit,与三端一致。
 
 /** 语义色板（light + dark 各一份）。 */
 @Immutable
@@ -43,43 +46,45 @@ data class FlareColors(
     val isDark: Boolean,
 )
 
+// 值委托给 kit FlareColors.Light（app 语义名 → kit token 字段）。
 private val LightFlareColors = FlareColors(
-    brand = Color(0xFF7D3BED),
-    brandSoft = Color(0xFFF2EBFF),
-    accent = Color(0xFF1A75D1),
-    background = Color(0xFFF5F5F7),
-    surface = Color(0xFFFFFFFF),
-    surfaceAlt = Color(0xFFF2F2F7),
-    textPrimary = Color(0xFF121217),
-    textSecondary = Color(0xFF6B7380),
-    textTertiary = Color(0xFFA3A6B0),
-    success = Color(0xFF21C45E),
-    warning = Color(0xFFF59E0B),
-    danger = Color(0xFFF04444),
-    incomingBubble = Color(0xFFEDE6FF),
-    outgoing = Color(0xFF7D3BED),
+    brand = KitColors.Light.primary,
+    brandSoft = KitColors.Light.bgSelected,
+    accent = KitColors.Light.info,
+    background = KitColors.Light.bgSecondary,
+    surface = KitColors.Light.bgPrimary,
+    surfaceAlt = KitColors.Light.bgTertiary,
+    textPrimary = KitColors.Light.textPrimary,
+    textSecondary = KitColors.Light.textSecondary,
+    textTertiary = KitColors.Light.textTertiary,
+    success = KitColors.Light.success,
+    warning = KitColors.Light.warning,
+    danger = KitColors.Light.error,
+    incomingBubble = KitColors.Light.bubbleOther,
+    outgoing = KitColors.Light.bubbleSelf,
     outgoingText = Color(0xFFFFFFFF),
-    hairline = Color(0x14000000),
+    hairline = KitColors.Light.borderPrimary,
     isDark = false,
 )
 
+// 值委托给 kit FlareColors.Dark。
 private val DarkFlareColors = FlareColors(
-    brand = Color(0xFF9D6BFF),
-    brandSoft = Color(0xFF2A2140),
-    accent = Color(0xFF3D90E0),
-    background = Color(0xFF0E0E12),
-    surface = Color(0xFF17171C),
-    surfaceAlt = Color(0xFF202028),
-    textPrimary = Color(0xFFF2F2F5),
-    textSecondary = Color(0xFFA0A4AE),
-    textTertiary = Color(0xFF6B6F7A),
-    success = Color(0xFF34D777),
-    warning = Color(0xFFF6B23C),
-    danger = Color(0xFFF26666),
-    incomingBubble = Color(0xFF262033),
-    outgoing = Color(0xFF8A4BF0),
+    brand = KitColors.Dark.primary,
+    brandSoft = KitColors.Dark.bgSelected,
+    accent = KitColors.Dark.info,
+    background = KitColors.Dark.bgSecondary,
+    surface = KitColors.Dark.bgPrimary,
+    surfaceAlt = KitColors.Dark.bgTertiary,
+    textPrimary = KitColors.Dark.textPrimary,
+    textSecondary = KitColors.Dark.textSecondary,
+    textTertiary = KitColors.Dark.textTertiary,
+    success = KitColors.Dark.success,
+    warning = KitColors.Dark.warning,
+    danger = KitColors.Dark.error,
+    incomingBubble = KitColors.Dark.bubbleOther,
+    outgoing = KitColors.Dark.bubbleSelf,
     outgoingText = Color(0xFFFFFFFF),
-    hairline = Color(0x1FFFFFFF),
+    hairline = KitColors.Dark.borderPrimary,
     isDark = true,
 )
 
@@ -106,12 +111,12 @@ object FlareTokens {
     val xl = 20.dp
     val xxl = 24.dp
 
-    // Radius：4 档 + pill。
-    val radiusSmall = RoundedCornerShape(6.dp)
-    val radiusMedium = RoundedCornerShape(8.dp)
-    val radiusLarge = RoundedCornerShape(12.dp)
-    val radiusXl = RoundedCornerShape(16.dp)
-    val pill = RoundedCornerShape(999.dp)
+    // Radius：委托到 kit FlareSizes（sm6/md8/lg10/xl14/full999）。
+    val radiusSmall = RoundedCornerShape(FlareSizes.radiusSm)
+    val radiusMedium = RoundedCornerShape(FlareSizes.radiusMd)
+    val radiusLarge = RoundedCornerShape(FlareSizes.radiusLg)
+    val radiusXl = RoundedCornerShape(FlareSizes.radiusXl)
+    val pill = RoundedCornerShape(FlareSizes.radiusFull)
 }
 
 /** 字体阶梯：系统 Roboto，精确字号/字重。 */

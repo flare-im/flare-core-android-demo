@@ -1,6 +1,8 @@
 package com.flare.im.app.features.messaging.messagerow
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import com.flare.im.app.R
 import com.flare.im.app.core.domain.AppMessage
 // flare-im-design compose kit (com.flare.im:im-ui-compose) — rich, self-contained
 // message cards. props in / events out; the app maps its content → props.
@@ -21,7 +23,7 @@ import com.flare.im.ui.VoteMessage
 internal fun FileMessageView(message: AppMessage, outgoing: Boolean) {
     val c = message.core.content
     FileMessage(
-        name = c?.str("name", "fileName") ?: "File",
+        name = c?.str("name", "fileName") ?: stringResource(R.string.msg_card_file),
         size = c?.str("size", "fileSize") ?: "",
         ext = c?.str("ext", "extension"),
     )
@@ -31,7 +33,7 @@ internal fun FileMessageView(message: AppMessage, outgoing: Boolean) {
 internal fun LocationMessageView(message: AppMessage, outgoing: Boolean) {
     val c = message.core.content
     LocationMessage(
-        title = c?.str("title", "address") ?: "Location",
+        title = c?.str("title", "address") ?: stringResource(R.string.msg_card_location),
         address = c?.str("address") ?: "",
     )
 }
@@ -40,7 +42,7 @@ internal fun LocationMessageView(message: AppMessage, outgoing: Boolean) {
 internal fun CardMessageView(message: AppMessage, outgoing: Boolean) {
     val c = message.core.content
     ContactMessage(
-        name = c?.str("title", "name") ?: "Contact",
+        name = c?.str("title", "name") ?: stringResource(R.string.msg_card_contact),
         subtitle = c?.str("subtitle", "id"),
         avatarUrl = c?.str("avatarUrl", "avatar"),
     )
@@ -50,7 +52,7 @@ internal fun CardMessageView(message: AppMessage, outgoing: Boolean) {
 internal fun LinkCardMessageView(message: AppMessage, outgoing: Boolean) {
     val c = message.core.content
     LinkCardMessage(
-        title = c?.str("title", "url") ?: "Link",
+        title = c?.str("title", "url") ?: stringResource(R.string.msg_card_link),
         domain = c?.str("domain") ?: "",
         thumb = c?.str("thumbnailUrl", "thumb"),
         description = c?.str("description"),
@@ -59,21 +61,21 @@ internal fun LinkCardMessageView(message: AppMessage, outgoing: Boolean) {
 
 @Composable
 internal fun MiniProgramMessageView(message: AppMessage, outgoing: Boolean) =
-    CardRow("▦", message.core.content?.str("title") ?: "Mini program", outgoing)
+    CardRow("▦", message.core.content?.str("title") ?: stringResource(R.string.msg_card_miniprogram), outgoing)
 
 @Composable
 internal fun VoteMessageView(message: AppMessage, outgoing: Boolean) {
-    VoteMessage(title = message.core.content?.str("title") ?: "Vote")
+    VoteMessage(title = message.core.content?.str("title") ?: stringResource(R.string.msg_card_vote))
 }
 
 @Composable
 internal fun TaskMessageView(message: AppMessage, outgoing: Boolean) {
-    TaskMessage(title = message.core.content?.str("title") ?: "Task")
+    TaskMessage(title = message.core.content?.str("title") ?: stringResource(R.string.msg_card_task))
 }
 
 @Composable
 internal fun ScheduleMessageView(message: AppMessage, outgoing: Boolean) =
-    CardRow("📅", message.core.content?.str("title") ?: "Schedule", outgoing)
+    CardRow("📅", message.core.content?.str("title") ?: stringResource(R.string.msg_card_schedule), outgoing)
 
 /** Notification / announcement / system → the kit's system pill. */
 @Composable
