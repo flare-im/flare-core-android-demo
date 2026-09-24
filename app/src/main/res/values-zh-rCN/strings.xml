@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="flare_kit_language">zh</string>
     <string name="app_name">FlareIM</string>
 
     <string name="nav_messages">消息</string>
@@ -82,20 +83,8 @@
 
     <string name="lab_title">SDK 运行状态</string>
     <string name="lab_no_ops">暂无实验操作</string>
-    <string name="msg_action_reply">回复</string>
-    <string name="msg_action_forward">转发</string>
-    <string name="msg_action_copy">复制</string>
-    <string name="msg_action_edit">编辑</string>
     <string name="msg_action_edit_rich">编辑富文本</string>
-    <string name="msg_action_recall">撤回</string>
-    <string name="msg_action_pin">置顶</string>
-    <string name="msg_action_pin_self">仅为我置顶</string>
-    <string name="msg_action_unpin">取消置顶</string>
-    <string name="msg_action_mark">标记</string>
-    <string name="msg_action_delete_self">仅删除本端</string>
     <string name="msg_action_delete_everyone">对所有人删除</string>
-    <string name="msg_action_save">保存到下载</string>
-    <string name="msg_action_resend">重新发送</string>
     <string name="msg_state_recalled">消息已撤回</string>
     <string name="msg_state_failed">发送失败 · 点击重试</string>
     <string name="msg_state_sending">发送中…</string>
@@ -116,7 +105,7 @@
     <string name="conv_archive">归档</string>
     <string name="conv_unarchive">取消归档</string>
     <string name="conv_mark_unread">标为未读</string>
-    <string name="conv_clear_local">清除本地</string>
+    <string name="conv_clear_local">清空本地聊天记录</string>
     <string name="conv_delete">删除</string>
     <string name="conv_direct">单聊</string>
     <string name="conv_group">群聊</string>
@@ -150,4 +139,6 @@
     <string name="fmt_quote">引用</string>
     <string name="fmt_bullet">无序列表</string>
     <string name="fmt_ordered">有序列表</string>
+    <string name="choose_conversation">选择一个会话</string>
+    <string name="choose_conversation_hint">从左侧列表打开会话，开始阅读消息。</string>
 </resources>

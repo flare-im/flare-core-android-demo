@@ -33,3 +33,13 @@ include(":app")
 include(":flare-core-android-sdk")
 
 project(":flare-core-android-sdk").projectDir = file("../../packages/flare-core-android-sdk")
+
+// A sibling design checkout is authoritative during workspace development.
+val localDesignKit = file("../../../flare-im-design/packages/android-im-ui")
+if (localDesignKit.isDirectory && providers.gradleProperty("flare.usePublishedKit").orNull != "true") {
+    includeBuild(localDesignKit) {
+        dependencySubstitution {
+            substitute(module("com.flare.im:im-ui-compose")).using(project(":"))
+        }
+    }
+}

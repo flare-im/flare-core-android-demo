@@ -5,7 +5,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.flare.im.app.core.platform.AndroidPlatformAdapter
 import com.flare.im.app.features.shell.FlareApp
+import com.flare.im.ui.FlarePlatformProvider
 
 /**
  * 单 Activity 宿主：装配 [FlareRootViewModel]（持组合根 FlareAppStore）并渲染 [FlareApp]。
@@ -25,10 +27,19 @@ class MainActivity : ComponentActivity() {
             android.system.Os.setenv("TMPDIR", cacheDir.absolutePath, true)
         }
         val savedSessionStore = com.flare.im.app.core.session.SavedSessionStore(applicationContext)
+        // Layer 5（spec/platform-contract.json）：宿主声明并执行原生能力，kit 只读 capabilities。
+        // 在 onCreate 注册 ActivityResult 契约（onStart 之前），配置变更后结果仍能回到新实例。
+        val platform = AndroidPlatformAdapter(
+            context = applicationContext,
+            registry = activityResultRegistry,
+            widthDp = { resources.configuration.screenWidthDp },
+        )
         setContent {
             val root: FlareRootViewModel =
                 viewModel(factory = FlareRootViewModel.factory(dataDir, savedSessionStore))
-            FlareApp(root.store)
+            FlarePlatformProvider(platform) {
+                FlareApp(root.store)
+            }
         }
     }
 }

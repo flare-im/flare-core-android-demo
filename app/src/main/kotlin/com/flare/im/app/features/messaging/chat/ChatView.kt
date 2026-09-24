@@ -1,5 +1,7 @@
 package com.flare.im.app.features.messaging.chat
 
+import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,6 +32,10 @@ import com.flare.im.app.features.messaging.messagerow.MessageRow
 import com.flare.im.app.features.shell.EmptyState
 import com.flare.im.app.features.shell.StatusDot
 import com.flare.im.app.features.shell.statusLabel
+import com.flare.im.ui.ConversationHeader
+import com.flare.im.ui.ConversationIdentity
+import com.flare.im.ui.ConversationHeaderAction
+import com.flare.im.ui.ConversationHeaderCapabilities
 
 /** 聊天屏：返回 + 标题头(状态副标题 + 会话内搜索) + 时间线 + 输入区(ComposerBar)。 */
 @Composable
@@ -44,19 +50,17 @@ fun ChatScreen(store: FlareAppStore) {
     var searchOpen by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxSize()) {
-        Row(Modifier.fillMaxWidth().background(colors.surface).padding(tk.md), verticalAlignment = Alignment.CenterVertically) {
-            TextButton(onClick = { store.environment.setSelectedConversationId(null) }) { Text("‹", style = FlareTheme.type.title, color = colors.brand) }
-            Column(Modifier.weight(1f)) {
-                Text(conversation?.appTitle ?: "", style = FlareTheme.type.headline, color = colors.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    StatusDot(status)
-                    Spacer(Modifier.width(tk.xs))
-                    Text(statusLabel(status), style = FlareTheme.type.caption, color = colors.textSecondary)
-                }
-            }
-            IconButton(onClick = { searchOpen = true }) { Text("🔍", style = FlareTheme.type.title) }
-        }
-        HorizontalDivider(color = colors.hairline)
+        ConversationHeader(
+            identity = ConversationIdentity(
+                id = conversation?.conversationId ?: "",
+                title = conversation?.appTitle ?: "",
+            ),
+            capabilities = ConversationHeaderCapabilities(setOf("search")),
+            actions = listOf(ConversationHeaderAction("search", stringResource(R.string.chat_search_title), "search")),
+            showBack = true,
+            onBack = { store.environment.setSelectedConversationId(null) },
+            onAction = { if (it.id == "search") searchOpen = true },
+        )
         if (messages.isEmpty()) {
             Box(Modifier.weight(1f)) { EmptyState(stringResource(R.string.chat_empty_title), stringResource(R.string.chat_empty_message)) }
         } else {
@@ -83,7 +87,7 @@ private fun InChatSearchSheet(store: FlareAppStore, onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState, containerColor = colors.surface) {
         Column(Modifier.fillMaxWidth().padding(horizontal = tk.lg).padding(bottom = tk.lg)) {
-            Text(stringResource(R.string.chat_search_title), style = FlareTheme.type.headline, color = colors.textPrimary)
+            Text(stringResource(R.string.chat_search_title), style = MaterialTheme.typography.titleMedium, color = colors.textPrimary)
             Spacer(Modifier.height(tk.sm))
             com.flare.im.ui.FormField(label = stringResource(R.string.chat_search_hint)) {
                 com.flare.im.ui.Input(
@@ -98,14 +102,14 @@ private fun InChatSearchSheet(store: FlareAppStore, onDismiss: () -> Unit) {
             HorizontalDivider(color = colors.hairline)
             if (results.isEmpty()) {
                 Box(Modifier.fillMaxWidth().height(120.dp), Alignment.Center) {
-                    Text(stringResource(R.string.chat_search_empty), style = FlareTheme.type.callout, color = colors.textTertiary)
+                    Text(stringResource(R.string.chat_search_empty), style = MaterialTheme.typography.bodyMedium, color = colors.textTertiary)
                 }
             } else {
                 LazyColumn(Modifier.fillMaxWidth().heightIn(max = 360.dp)) {
                     items(results, key = { it.appStableId }) { m ->
                         Column(Modifier.fillMaxWidth().padding(vertical = tk.sm)) {
-                            Text(m.core.senderId, style = FlareTheme.type.captionStrong, color = colors.textSecondary)
-                            Text(m.previewText, style = FlareTheme.type.callout, color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(m.core.senderId, style = MaterialTheme.typography.labelMedium, color = colors.textSecondary)
+                            Text(m.previewText, style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }

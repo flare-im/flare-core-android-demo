@@ -1,8 +1,5 @@
 package com.flare.im.app.features.messaging.composer
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,6 +8,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.automirrored.outlined.Article
@@ -51,261 +49,105 @@ import com.flare.im.app.core.platform.AudioRecorder
 import com.flare.im.app.core.platform.FlareAssetImage
 import com.flare.im.app.features.messaging.MessagingViewModel
 import com.flare.im.app.features.messaging.media.EmojiPresentation
+import com.flare.im.ui.FlareCapabilitySupport
+import com.flare.im.ui.FlarePickFilesOptions
+import com.flare.im.ui.FlarePickImagesOptions
+import com.flare.im.ui.FlarePickedFile
+import com.flare.im.ui.FlarePlatformErrorCode
+import com.flare.im.ui.FlarePlatformResult
+import com.flare.im.ui.callFlarePlatform
+import com.flare.im.ui.flarePlatform
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /** 输入区：文本 + 表情/贴纸面板 + 扩展构建菜单 +
  *  录音 + 图片选择 + 发送。自持状态，仅依赖 [MessagingViewModel]。 */
 @Composable
 fun ComposerBar(vm: MessagingViewModel, conversationTitle: String) {
-    val colors = FlareTheme.colors
-    val tk = FlareTheme.tokens
-    var composer by remember { mutableStateOf(TextFieldValue("")) }
-    var richMode by remember { mutableStateOf(false) }
-    var builderMenu by remember { mutableStateOf(false) }
+    val conversation by vm.selectedConversation.collectAsState()
+    val reply by vm.replyTarget.collectAsState()
+    val runtimeStatus by vm.runtimeStatus.collectAsState()
     var emojiPanel by remember { mutableStateOf(false) }
     var formOp by remember { mutableStateOf<MessageBuildOp?>(null) }
-    val replyTarget by vm.replyTarget.collectAsState()
-
-    // richMode 下发送走 create_rich_doc（core 归一化 Markdown→docJson）；否则纯文本。
-    fun submitComposer() {
-        val text = composer.text
-        if (text.isBlank()) return
-        if (richMode) {
-            vm.buildAndSend(MessageBuildOp.CreateRichDoc, mapOf("markdown" to text))
-        } else {
-            vm.sendText(text)
-        }
-        composer = TextFieldValue("")
+    // Layer 5：选择器由宿主适配器执行（MainActivity 装配），这里只读能力决定入口是否存在。
+    val platform = flarePlatform()
+    val capabilities = platform.capabilities
+    val pickerScope = rememberCoroutineScope()
+    val allOps = listOf(MessageBuildOp.CreateVideo, MessageBuildOp.CreateLocation, MessageBuildOp.CreateFile, MessageBuildOp.CreateCard, MessageBuildOp.CreateTask, MessageBuildOp.CreateVote, MessageBuildOp.CreateSchedule, MessageBuildOp.CreateRichDoc, MessageBuildOp.CreateLinkCard, MessageBuildOp.CreateSticker)
+    val ops = if (capabilities.filePicker == FlareCapabilitySupport.Unsupported) {
+        allOps.filterNot { it == MessageBuildOp.CreateFile }
+    } else {
+        allOps
     }
-
-    val context = LocalContext.current
-    val recorder = remember { AudioRecorder(context) }
-    var recording by remember { mutableStateOf(false) }
-    fun stopAndSend() { recorder.stop()?.let { (path, dur) -> vm.sendAudio(path, dur) }; recording = false }
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        uri?.let { vm.sendPickedImage(it.toString()) }
-    }
-    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) recording = recorder.start()
-    }
-
-    // 版式对齐 Flutter message_composer（见 examples/COMPOSER-DESIGN-SPEC.md）：
-    // 栏底 background + 顶圆角 16；两行——上行白底圆角输入框（IME 发送，无独立发送键），
-    // 下行 6 槽均分图标工具栏（emoji/@/语音/图片/富文档/更多）。
-    Column(
-        Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = tk.lg, topEnd = tk.lg))
-            .background(colors.background),
-    ) {
-        // 引用条：正在回复谁 + 一键取消。没有它，用户看不出下一条会带引用。
-        replyTarget?.let { target ->
-            Row(
-                Modifier.fillMaxWidth()
-                    .background(colors.surfaceAlt)
-                    .padding(horizontal = tk.md, vertical = tk.xs),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    stringResource(
-                        R.string.composer_replying_to,
-                        target.core.senderId,
-                        target.previewText.take(40),
-                    ),
-                    style = FlareTheme.type.caption,
-                    color = colors.textSecondary,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    stringResource(R.string.action_cancel),
-                    style = FlareTheme.type.caption,
-                    color = colors.brand,
-                    modifier = Modifier.clickable { vm.cancelReply() }.padding(start = tk.sm),
-                )
-            }
-        }
+    Column {
         if (emojiPanel) EmojiStickerPanel(vm) { emojiPanel = false }
-        formOp?.let { op -> ComposerFormDialog(op, vm) { formOp = null } }
-        HorizontalDivider(thickness = 0.5.dp, color = colors.hairline)
-        Column(Modifier.fillMaxWidth().padding(horizontal = tk.sm, vertical = tk.sm)) {
-            // 第 1 行：白底圆角输入框（无描边；发送走 IME 发送键 / 回车，硬件键盘可点发送图标）。
-            TextField(
-                value = composer,
-                onValueChange = { composer = it },
-                placeholder = {
-                    Text(stringResource(R.string.composer_hint, conversationTitle), color = colors.textSecondary)
-                },
-                textStyle = FlareTheme.type.body.copy(color = colors.textPrimary),
-                modifier = Modifier.fillMaxWidth().clip(tk.radiusSmall),
-                maxLines = 5,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = { submitComposer() }),
-                trailingIcon = {
-                    if (composer.text.isNotBlank()) {
-                        IconButton(onClick = { submitComposer() }) {
-                            Icon(
-                                Icons.AutoMirrored.Outlined.Send,
-                                contentDescription = stringResource(R.string.composer_send),
-                                tint = colors.brand,
-                            )
-                        }
-                    }
-                },
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = colors.surface,
-                    unfocusedContainerColor = colors.surface,
-                    disabledContainerColor = colors.surface,
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                ),
-            )
-            // 富文本格式工具条（对齐 Flutter）：选区感知插入 Markdown 标记，由 core 归一化为 RichDoc v2。
-            if (richMode) {
-                ComposerRichFormatStrip(
-                    onApply = { composer = it(composer) },
-                    tint = colors.textSecondary,
-                )
-            }
-            Spacer(Modifier.height(tk.sm))
-            HorizontalDivider(thickness = 0.5.dp, color = colors.hairline)
-            // 第 2 行：6 槽均分图标工具栏。
-            Row(Modifier.fillMaxWidth().padding(top = tk.xs), verticalAlignment = Alignment.CenterVertically) {
-                ComposerToolbarIcon(Icons.Outlined.EmojiEmotions, stringResource(R.string.composer_emoji_sticker), Modifier.weight(1f), colors.textSecondary) {
-                    emojiPanel = !emojiPanel
+        com.flare.im.ui.Composer(
+            conversationKey = conversation?.conversationId ?: "",
+            placeholder = stringResource(R.string.composer_hint, conversationTitle),
+            disabled = runtimeStatus.isBlocking,
+            replyTo = reply?.let { com.flare.im.ui.FlareReplyTarget(it.core.senderId, it.previewText) },
+            onCancelReply = { vm.cancelReply() },
+            onSend = { vm.sendText(it) },
+            onSendRich = { vm.buildAndSend(MessageBuildOp.CreateRichDoc, mapOf("markdown" to it)) },
+            onEmoji = { emojiPanel = !emojiPanel },
+            onImage = if (capabilities.imagePicker == FlareCapabilitySupport.Unsupported) null else {
+                {
+                    pickerScope.pick(
+                        vm = vm,
+                        operation = "platform.pickImages",
+                        request = { platform.pickImages(FlarePickImagesOptions(multiple = false)) },
+                    ) { picked -> vm.sendPickedImage(picked.uri ?: picked.path ?: "") }
                 }
-                ComposerToolbarIcon(Icons.Outlined.AlternateEmail, stringResource(R.string.composer_mention), Modifier.weight(1f), colors.textSecondary) {
-                    composer = composerInsert(composer, "@")
-                }
-                ComposerToolbarIcon(
-                    if (recording) Icons.Filled.Stop else Icons.Outlined.MicNone,
-                    stringResource(R.string.composer_voice),
-                    Modifier.weight(1f),
-                    if (recording) colors.danger else colors.textSecondary,
-                ) {
-                    if (recording) {
-                        stopAndSend()
-                    } else if (context.checkSelfPermission(android.Manifest.permission.RECORD_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                        recording = recorder.start()
-                    } else {
-                        micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+            },
+            enableVoice = true,
+            onVoiceSend = { path, duration -> vm.sendVoiceClip(path, duration) },
+            actions = ops.map { com.flare.im.ui.FlareComposerAction(it.name, it.name.removePrefix("Create"), when (it) {
+                MessageBuildOp.CreateVideo -> "video"
+                MessageBuildOp.CreateLocation -> "location"
+                MessageBuildOp.CreateFile -> "file"
+                MessageBuildOp.CreateCard -> "card"
+                MessageBuildOp.CreateTask -> "check"
+                MessageBuildOp.CreateVote -> "poll"
+                MessageBuildOp.CreateSchedule -> "calendar"
+                MessageBuildOp.CreateLinkCard -> "link"
+                MessageBuildOp.CreateSticker -> "emoji"
+                else -> "file"
+            }) },
+            onAction = { action ->
+                ops.find { it.name == action.id }?.let { op ->
+                    when {
+                        op == MessageBuildOp.CreateFile -> pickerScope.pick(
+                            vm = vm,
+                            operation = "platform.pickFiles",
+                            request = { platform.pickFiles(FlarePickFilesOptions(multiple = false)) },
+                        ) { picked -> vm.sendPickedFile(picked.name, picked.uri ?: picked.path, picked.mimeType, picked.size) }
+                        op in formOps -> formOp = op
+                        else -> vm.buildAndSend(op)
                     }
                 }
-                ComposerToolbarIcon(Icons.Outlined.Image, stringResource(R.string.composer_image), Modifier.weight(1f), colors.textSecondary) {
-                    imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                }
-                ComposerToolbarIcon(
-                    Icons.AutoMirrored.Outlined.Article,
-                    stringResource(R.string.composer_richtext),
-                    Modifier.weight(1f),
-                    if (richMode) colors.brand else colors.textSecondary,
-                ) {
-                    richMode = !richMode
-                }
-                Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                    ComposerToolbarIcon(
-                        if (builderMenu) Icons.Outlined.Close else Icons.Outlined.Add,
-                        stringResource(R.string.composer_more),
-                        Modifier,
-                        colors.textSecondary,
-                    ) { builderMenu = true }
-                    DropdownMenu(expanded = builderMenu, onDismissRequest = { builderMenu = false }) {
-                        DropdownMenuItem(text = { Text("Pick image") }, onClick = {
-                            builderMenu = false
-                            imagePicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        })
-                        listOf(
-                            "Image (demo)" to MessageBuildOp.CreateImage,
-                            "Video" to MessageBuildOp.CreateVideo,
-                            "Location" to MessageBuildOp.CreateLocation,
-                            "File" to MessageBuildOp.CreateFile,
-                            "Card" to MessageBuildOp.CreateCard,
-                            "Task" to MessageBuildOp.CreateTask,
-                            "Vote" to MessageBuildOp.CreateVote,
-                            "Schedule" to MessageBuildOp.CreateSchedule,
-                            "Rich doc" to MessageBuildOp.CreateRichDoc,
-                            "Link card" to MessageBuildOp.CreateLinkCard,
-                            "Sticker" to MessageBuildOp.CreateSticker,
-                        ).forEach { (label, op) ->
-                            DropdownMenuItem(text = { Text(label) }, onClick = {
-                                builderMenu = false
-                                if (op in formOps) formOp = op else vm.buildAndSend(op)
-                            })
-                        }
-                    }
-                }
+            },
+        )
+    }
+    formOp?.let { ComposerFormDialog(it, vm) { formOp = null } }
+}
+
+/**
+ * 跑一次适配器选择操作：CANCELLED（含空选择）静默，其余错误码进 Lab 日志。
+ * 宿主不写 try/catch —— [callFlarePlatform] 已把抛出归一化成契约错误码。
+ */
+private fun CoroutineScope.pick(
+    vm: MessagingViewModel,
+    operation: String,
+    request: suspend () -> FlarePlatformResult<List<FlarePickedFile>>,
+    onPicked: (FlarePickedFile) -> Unit,
+) {
+    launch {
+        when (val result = callFlarePlatform(timeoutMs = 120_000) { request() }) {
+            is FlarePlatformResult.Ok -> result.value.firstOrNull()?.let(onPicked)
+            is FlarePlatformResult.Err -> if (result.error.code != FlarePlatformErrorCode.CANCELLED) {
+                vm.notePlatformError(operation, "${result.error.code}: ${result.error.message ?: ""}")
             }
         }
-    }
-}
-
-// ───── 富文本编辑：选区感知的 Markdown 标记插入（对齐 Flutter rich_text_composer_formatter）─────
-
-/** 在光标/选区处插入文本（有选区则替换）。 */
-private fun composerInsert(value: TextFieldValue, text: String): TextFieldValue {
-    val start = value.selection.min
-    val end = value.selection.max
-    val merged = value.text.substring(0, start) + text + value.text.substring(end)
-    return TextFieldValue(merged, TextRange(start + text.length))
-}
-
-/** 用 before/after 包裹选区（无选区则插入标记并把光标置于中间）。 */
-private fun composerWrap(value: TextFieldValue, before: String, after: String): TextFieldValue {
-    val start = value.selection.min
-    val end = value.selection.max
-    val selected = value.text.substring(start, end)
-    val merged = value.text.substring(0, start) + before + selected + after + value.text.substring(end)
-    val cursor = if (selected.isEmpty()) start + before.length else start + before.length + selected.length + after.length
-    return TextFieldValue(merged, TextRange(cursor))
-}
-
-/** 在当前行行首加 prefix（标题/引用/列表）。 */
-private fun composerPrefixLine(value: TextFieldValue, prefix: String): TextFieldValue {
-    val text = value.text
-    val cursor = value.selection.min
-    val lineStart = text.lastIndexOf('\n', (cursor - 1).coerceAtLeast(0)).let { if (it < 0) 0 else it + 1 }
-    val merged = text.substring(0, lineStart) + prefix + text.substring(lineStart)
-    return TextFieldValue(merged, TextRange(cursor + prefix.length))
-}
-
-/** 富文本格式工具条：行内(粗/斜/删/码) + 块级(标题/引用/无序/有序)，应用为 Markdown 标记。 */
-@Composable
-private fun ComposerRichFormatStrip(
-    onApply: ((TextFieldValue) -> TextFieldValue) -> Unit,
-    tint: Color,
-) {
-    val tk = FlareTheme.tokens
-    Row(
-        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(top = tk.xs),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        ComposerFormatButton(Icons.Outlined.FormatBold, stringResource(R.string.fmt_bold), tint) { onApply { composerWrap(it, "**", "**") } }
-        ComposerFormatButton(Icons.Outlined.FormatItalic, stringResource(R.string.fmt_italic), tint) { onApply { composerWrap(it, "*", "*") } }
-        ComposerFormatButton(Icons.Outlined.FormatStrikethrough, stringResource(R.string.fmt_strike), tint) { onApply { composerWrap(it, "~~", "~~") } }
-        ComposerFormatButton(Icons.Outlined.Code, stringResource(R.string.fmt_code), tint) { onApply { composerWrap(it, "`", "`") } }
-        ComposerFormatButton(Icons.Outlined.Title, stringResource(R.string.fmt_heading), tint) { onApply { composerPrefixLine(it, "## ") } }
-        ComposerFormatButton(Icons.Outlined.FormatQuote, stringResource(R.string.fmt_quote), tint) { onApply { composerPrefixLine(it, "> ") } }
-        ComposerFormatButton(Icons.AutoMirrored.Outlined.FormatListBulleted, stringResource(R.string.fmt_bullet), tint) { onApply { composerPrefixLine(it, "- ") } }
-        ComposerFormatButton(Icons.Outlined.FormatListNumbered, stringResource(R.string.fmt_ordered), tint) { onApply { composerPrefixLine(it, "1. ") } }
-    }
-}
-
-@Composable
-private fun ComposerFormatButton(icon: ImageVector, label: String, tint: Color, onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(20.dp))
-    }
-}
-
-/** 工具栏单色描边图标按钮（命中区 ~48dp，图标 24，色 textSecondary/选中态自定）。 */
-@Composable
-private fun ComposerToolbarIcon(
-    icon: ImageVector,
-    contentDescription: String,
-    modifier: Modifier = Modifier,
-    tint: Color,
-    onClick: () -> Unit,
-) {
-    IconButton(onClick = onClick, modifier = modifier) {
-        Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(24.dp))
     }
 }
 
@@ -326,8 +168,7 @@ private fun EmojiStickerPanel(vm: MessagingViewModel, onClose: () -> Unit) {
 // 这些 build op 弹表单收集输入（其余直接用默认内容发送）。
 private val formOps = setOf(
     MessageBuildOp.CreateVote, MessageBuildOp.CreateLocation, MessageBuildOp.CreateCard,
-    MessageBuildOp.CreateLinkCard, MessageBuildOp.CreateFile, MessageBuildOp.CreateTask,
-    MessageBuildOp.CreateRichDoc,
+    MessageBuildOp.CreateLinkCard, MessageBuildOp.CreateTask, MessageBuildOp.CreateRichDoc,
 )
 
 private data class FormSpec(val title: String, val fields: List<Triple<String, String, String>>)
@@ -351,10 +192,6 @@ private fun formSpec(op: MessageBuildOp): FormSpec = when (op) {
         Triple("url", "URL", "https://flare.local"),
         Triple("title", "Title", "Flare"),
         Triple("description", "Description", ""),
-    ))
-    MessageBuildOp.CreateFile -> FormSpec("File", listOf(
-        Triple("fileName", "File name", "report.pdf"),
-        Triple("url", "URL", ""),
     ))
     MessageBuildOp.CreateTask -> FormSpec("Task", listOf(
         Triple("title", "Task title", "Task"),
@@ -383,13 +220,13 @@ private fun ComposerFormDialog(op: MessageBuildOp, vm: MessagingViewModel, onDis
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
-            TextButton(onClick = {
+            com.flare.im.ui.Button(label = stringResource(R.string.composer_form_send), onClick = {
                 vm.buildAndSend(op, values.mapValues { (k, v) -> convertFormField(k, v) })
                 onDismiss()
-            }) { Text(stringResource(R.string.composer_form_send)) }
+            })
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
-        title = { Text(spec.title, style = FlareTheme.type.headline) },
+        dismissButton = { com.flare.im.ui.Button(label = stringResource(R.string.action_cancel), variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = onDismiss) },
+        title = { Text(spec.title, style = MaterialTheme.typography.titleMedium) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(tk.sm)) {
                 spec.fields.forEach { (key, label, _) ->

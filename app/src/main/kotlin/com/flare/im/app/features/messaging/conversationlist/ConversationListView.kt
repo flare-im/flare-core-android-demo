@@ -7,6 +7,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,8 @@ import com.flare.im.app.core.domain.ConversationFilter
 import com.flare.im.app.features.shell.EmptyState
 import com.flare.im.app.features.shell.StatusDot
 import com.flare.im.app.features.shell.statusLabel
+import com.flare.im.ui.FlareConversationAction
+import com.flare.im.ui.FlareSizes
 
 /** 会话列表屏：眉标头 + 过滤 + 列表 + 起会话。 */
 @Composable
@@ -42,20 +45,20 @@ fun ConversationListScreen(store: FlareAppStore) {
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(tk.lg), verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.brand_eyebrow), style = FlareTheme.type.eyebrow, color = colors.textSecondary)
-                Text(stringResource(R.string.conversations_title), style = FlareTheme.type.largeTitle, color = colors.textPrimary)
+                Text(stringResource(R.string.brand_eyebrow), style = MaterialTheme.typography.labelSmall, color = colors.textSecondary)
+                Text(stringResource(R.string.conversations_title), style = MaterialTheme.typography.headlineLarge, color = colors.textPrimary)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     StatusDot(status)
                     Spacer(Modifier.width(tk.xs))
                     Text(
                         stringResource(R.string.conversations_subtitle, all.size, all.count { it.core.isPinned }, statusLabel(status)),
-                        style = FlareTheme.type.captionStrong, color = colors.textSecondary,
+                        style = MaterialTheme.typography.labelMedium, color = colors.textSecondary,
                     )
                 }
             }
             IconButton(onClick = { startOpen = true }) {
                 Box(Modifier.size(40.dp).clip(CircleShape).background(colors.brand), Alignment.Center) {
-                    Text("+", color = colors.outgoingText, style = FlareTheme.type.title)
+                    Text("+", color = colors.outgoingText, style = MaterialTheme.typography.titleLarge)
                 }
             }
         }
@@ -125,7 +128,7 @@ private fun conversationRowTags(c: AppConversation): List<com.flare.im.ui.Conver
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ConversationRow(store: FlareAppStore, c: AppConversation) {
     val vm = store.messagingViewModel
@@ -142,21 +145,57 @@ private fun ConversationRow(store: FlareAppStore, c: AppConversation) {
                 pinned = c.core.isPinned,
                 muted = c.core.isMuted,
                 mentioned = c.core.mentionMe,
+                draftPreview = c.core.draft,
                 tags = conversationRowTags(c),
             ),
             onSelect = { vm.openConversation(c.conversationId) },
             onLongPress = { menu = true },
         )
-        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
-            listOf(
-                (if (c.core.isPinned) stringResource(R.string.conv_unpin) else stringResource(R.string.conv_pin)) to "pin",
-                (if (c.core.isMuted) stringResource(R.string.conv_unmute) else stringResource(R.string.conv_mute)) to "mute",
-                (if (c.core.isArchived) stringResource(R.string.conv_unarchive) else stringResource(R.string.conv_archive)) to "archive",
-                stringResource(R.string.conv_mark_unread) to "unread",
-                stringResource(R.string.conv_clear_local) to "clear",
-                stringResource(R.string.conv_delete) to "delete",
-            ).forEach { (label, action) ->
-                DropdownMenuItem(text = { Text(label) }, onClick = { menu = false; vm.conversationAction(action, c) })
+        if (menu) {
+            // Open at full content height: half-expanded, the host rows sat below the fold and the
+            // last one under the gesture bar.
+            ModalBottomSheet(onDismissRequest = { menu = false }, sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)) {
+                com.flare.im.ui.ConversationActionSheet(
+                    conversation = com.flare.im.ui.FlareConversationActionSnapshot(
+                        id = c.conversationId, title = c.appTitle, pinned = c.core.isPinned,
+                        muted = c.core.isMuted, archived = c.core.isArchived),
+                    capabilities = com.flare.im.ui.FlareConversationActionCapabilities(
+                        pin = true, mute = true, archive = true, delete = true),
+                    onAction = { _, action ->
+                        menu = false
+                        val command = when (action) {
+                            FlareConversationAction.Pin, FlareConversationAction.Unpin -> "pin"
+                            FlareConversationAction.Mute, FlareConversationAction.Unmute -> "mute"
+                            FlareConversationAction.Archive, FlareConversationAction.Unarchive -> "archive"
+                            FlareConversationAction.Delete -> "delete"
+                            else -> null
+                        }
+                        command?.let { vm.conversationAction(it, c) }
+                    },
+                )
+                // Host actions the kit sheet has no entry for. One card on the kit groups' surface and
+                // radius — as bare rows they read as a second, unstyled menu — and the sheet content
+                // keeps clear of the gesture bar, which the last row used to run into.
+                Column(
+                    Modifier.fillMaxWidth()
+                        .padding(horizontal = FlareSizes.spacingSm)
+                        .padding(top = FlareSizes.spacingSm)
+                        .clip(RoundedCornerShape(FlareSizes.radius2xl))
+                        .background(com.flare.im.ui.flareColors().bgPrimary)
+                        .padding(horizontal = FlareSizes.spacingMd, vertical = FlareSizes.spacingXs),
+                ) {
+                    com.flare.im.ui.SettingsRow(
+                        item = com.flare.im.ui.SettingsItem(key = "unread", label = stringResource(R.string.conv_mark_unread),
+                            kind = com.flare.im.ui.FlareSettingKind.Value),
+                        onSelect = { menu = false; vm.conversationAction("unread", c) },
+                    )
+                    com.flare.im.ui.SettingsRow(
+                        item = com.flare.im.ui.SettingsItem(key = "clear", label = stringResource(R.string.conv_clear_local),
+                            kind = com.flare.im.ui.FlareSettingKind.Value, danger = true),
+                        onSelect = { menu = false; vm.conversationAction("clear", c) },
+                    )
+                }
+                Spacer(Modifier.navigationBarsPadding().height(FlareSizes.spacingSm))
             }
         }
     }
@@ -178,7 +217,7 @@ private fun StartConversationDialog(store: FlareAppStore, onDismiss: () -> Unit)
             }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
-        title = { Text(stringResource(R.string.conversations_start), style = FlareTheme.type.headline) },
+        title = { Text(stringResource(R.string.conversations_start), style = MaterialTheme.typography.titleMedium) },
         text = {
             Column {
                 com.flare.im.ui.SegmentedControl(

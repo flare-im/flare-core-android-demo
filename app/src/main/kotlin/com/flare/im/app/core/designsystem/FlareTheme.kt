@@ -2,21 +2,16 @@ package com.flare.im.app.core.designsystem
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.flare.im.ui.FlareColors as KitColors
+import com.flare.im.ui.LocalFlareStrings
+import com.flare.im.ui.FlareThemeProvider
+import com.flare.im.ui.FlareThemeMode
 import com.flare.im.ui.FlareSizes
 
 // FlareTheme — Compose 设计系统（品牌锁定，关闭 dynamic-color）。
@@ -60,9 +55,9 @@ private val LightFlareColors = FlareColors(
     success = KitColors.Light.success,
     warning = KitColors.Light.warning,
     danger = KitColors.Light.error,
-    incomingBubble = KitColors.Light.bubbleOther,
-    outgoing = KitColors.Light.bubbleSelf,
-    outgoingText = Color(0xFFFFFFFF),
+    incomingBubble = KitColors.Light.messageIncomingBackground,
+    outgoing = KitColors.Light.messageOutgoingBackground,
+    outgoingText = KitColors.Light.messageOutgoingForeground,
     hairline = KitColors.Light.borderPrimary,
     isDark = false,
 )
@@ -81,9 +76,9 @@ private val DarkFlareColors = FlareColors(
     success = KitColors.Dark.success,
     warning = KitColors.Dark.warning,
     danger = KitColors.Dark.error,
-    incomingBubble = KitColors.Dark.bubbleOther,
-    outgoing = KitColors.Dark.bubbleSelf,
-    outgoingText = Color(0xFFFFFFFF),
+    incomingBubble = KitColors.Dark.messageIncomingBackground,
+    outgoing = KitColors.Dark.messageOutgoingBackground,
+    outgoingText = KitColors.Dark.messageOutgoingForeground,
     hairline = KitColors.Dark.borderPrimary,
     isDark = true,
 )
@@ -103,13 +98,13 @@ fun FlareColors.color(tone: FlareTone): Color = when (tone) {
 @Immutable
 object FlareTokens {
     // Spacing：4pt 基准网格。
-    val xxs = 2.dp
-    val xs = 4.dp
-    val sm = 8.dp
-    val md = 12.dp
-    val lg = 16.dp
-    val xl = 20.dp
-    val xxl = 24.dp
+    val xxs = FlareSizes.spacingXs / 2
+    val xs = FlareSizes.spacingXs
+    val sm = FlareSizes.spacingSm
+    val md = FlareSizes.spacingMd
+    val lg = FlareSizes.spacingLg
+    val xl = FlareSizes.spacingXl
+    val xxl = FlareSizes.spacing2xl
 
     // Radius：委托到 kit FlareSizes（sm6/md8/lg10/xl14/full999）。
     val radiusSmall = RoundedCornerShape(FlareSizes.radiusSm)
@@ -119,20 +114,6 @@ object FlareTokens {
     val pill = RoundedCornerShape(FlareSizes.radiusFull)
 }
 
-/** 字体阶梯：系统 Roboto，精确字号/字重。 */
-@Immutable
-object FlareType {
-    val largeTitle = TextStyle(fontSize = 25.sp, fontWeight = FontWeight.Black, lineHeight = 30.sp)
-    val title = TextStyle(fontSize = 22.sp, fontWeight = FontWeight.Bold, lineHeight = 28.sp)
-    val headline = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, lineHeight = 22.sp)
-    val body = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Normal, lineHeight = 21.sp)
-    val callout = TextStyle(fontSize = 14.sp, fontWeight = FontWeight.Medium, lineHeight = 19.sp)
-    val caption = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Normal, lineHeight = 16.sp)
-    val captionStrong = TextStyle(fontSize = 12.sp, fontWeight = FontWeight.SemiBold, lineHeight = 16.sp)
-    // 签名样式：FLARE CORE 眉标（大写 + 字距）。
-    val eyebrow = TextStyle(fontSize = 11.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
-}
-
 private val LocalFlareColors = staticCompositionLocalOf { LightFlareColors }
 
 /** 在 Compose 树中读取 Flare 设计 token。 */
@@ -140,32 +121,7 @@ object FlareTheme {
     val colors: FlareColors
         @Composable @ReadOnlyComposable get() = LocalFlareColors.current
     val tokens: FlareTokens get() = FlareTokens
-    val type: FlareType get() = FlareType
 }
-
-private fun FlareColors.toMaterialScheme() = if (isDark) {
-    darkColorScheme(
-        primary = brand, onPrimary = outgoingText, secondary = accent,
-        background = background, onBackground = textPrimary,
-        surface = surface, onSurface = textPrimary,
-        surfaceVariant = surfaceAlt, error = danger,
-    )
-} else {
-    lightColorScheme(
-        primary = brand, onPrimary = outgoingText, secondary = accent,
-        background = background, onBackground = textPrimary,
-        surface = surface, onSurface = textPrimary,
-        surfaceVariant = surfaceAlt, error = danger,
-    )
-}
-
-private fun materialTypography() = Typography(
-    titleLarge = FlareType.title,
-    titleMedium = FlareType.headline,
-    bodyLarge = FlareType.body,
-    bodyMedium = FlareType.callout,
-    labelSmall = FlareType.caption,
-)
 
 /**
  * App 主题。`dark` 为 null 时跟随系统。
@@ -178,10 +134,10 @@ fun FlareAppTheme(
 ) {
     val isDark = dark ?: isSystemInDarkTheme()
     val colors = if (isDark) DarkFlareColors else LightFlareColors
-    CompositionLocalProvider(LocalFlareColors provides colors) {
-        MaterialTheme(
-            colorScheme = colors.toMaterialScheme(),
-            typography = materialTypography(),
+    CompositionLocalProvider(LocalFlareColors provides colors, LocalFlareStrings provides rememberKitStrings()) {
+        FlareThemeProvider(
+            mode = if (isDark) FlareThemeMode.Dark else FlareThemeMode.Light,
+            colors = if (isDark) KitColors.Dark else KitColors.Light,
             content = content,
         )
     }

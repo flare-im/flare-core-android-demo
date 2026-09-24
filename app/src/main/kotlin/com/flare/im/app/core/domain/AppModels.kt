@@ -150,8 +150,9 @@ data class LoginDraft(
     }
 }
 
-/** SDK Lab 操作记录。 */
+/** SDK Lab 操作记录。[id] 按记录顺序递增，结果列表用它做 key。 */
 data class LabResult(
+    val id: Long,
     val operation: String,
     val status: String,
     val detail: String,

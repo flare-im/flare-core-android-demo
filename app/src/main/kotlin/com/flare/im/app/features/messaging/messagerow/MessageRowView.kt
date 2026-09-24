@@ -1,5 +1,7 @@
 package com.flare.im.app.features.messaging.messagerow
 
+import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -7,9 +9,9 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +22,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DeleteForever
+import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.ui.semantics.contentDescription
@@ -36,21 +40,54 @@ import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.app.core.domain.MessageBuildOp
 import com.flare.im.app.features.messaging.MessagingViewModel
+import com.flare.im.ui.FlareAudioContent
+import com.flare.im.ui.FlareCardContent
+import com.flare.im.ui.FlareConversationKind
+import com.flare.im.ui.FlareEmojiContent
+import com.flare.im.ui.FlareFileContent
+import com.flare.im.ui.FlareGenericContent
+import com.flare.im.ui.FlareImageContent
+import com.flare.im.ui.FlareLocationContent
+import com.flare.im.ui.FlareMessageContent
+import com.flare.im.ui.FlareMessageData
+import com.flare.im.ui.FlareMessageDeliveryStatus
+import com.flare.im.ui.FlareNotificationContent
+import com.flare.im.ui.FlarePlaceholderContent
+import com.flare.im.ui.FlareStickerContent
+import com.flare.im.ui.FlareTextContent
+import com.flare.im.ui.FlareVideoContent
+import com.flare.im.ui.FlarePollContent
+import com.flare.im.ui.FlareTaskContent
+import com.flare.im.ui.FlareCalendarContent
+import com.flare.im.ui.FlareMiniAppContent
+import com.flare.im.ui.FlareAnnouncementContent
+import com.flare.im.ui.FlareLinkCardContent
+import com.flare.im.ui.FlareMessageActionAvailability
+import com.flare.im.ui.FlareMessageMenuEntry
+import com.flare.im.ui.FlareMessageMenuGroup
+import com.flare.im.ui.MessageActionSheet
+import com.flare.im.ui.MessageBubble
+import com.flare.im.ui.flareColors
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 
-/** 一行消息：气泡外壳 + 长按动作菜单 + 发送状态 + 表情回应条。
- *  内容渲染按 contentType 委派给 [MessageContentView]（每类型独立组件文件）。 */
+/** SDK data/action adapter around the public design-kit message bubble. */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
-    val colors = FlareTheme.colors
-    val tk = FlareTheme.tokens
     var menu by remember { mutableStateOf(false) }
     var previewPath by remember { mutableStateOf<String?>(null) }
+    var playbackPath by remember { mutableStateOf<String?>(null) }
+    val mediaScope = rememberCoroutineScope()
+    var mediaJob by remember { mutableStateOf<Job?>(null) }
     val pending by vm.pendingMessageKeys.collectAsState()
     val failed by vm.failedMessageKeys.collectAsState()
     val clipboard = LocalClipboardManager.current
     val me by vm.currentUserId.collectAsState()
-    val content = message.core.content
     // 送达状态：判定用核心那一份（MessageDelivery，由 sdk-spec 向量钉住）。
     val deliveryState = MessageDelivery.state(
         isSelf = outgoing,
@@ -59,86 +96,160 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
         isPending = message.appStableId in pending,
         isFailed = message.appStableId in failed,
     )
-    val standalone = !message.core.isRecalled && isStandaloneAsset(content, message.previewText)
+    val presentation = message.toPresentation(deliveryState)
 
-    Column(Modifier.fillMaxWidth(), horizontalAlignment = if (outgoing) Alignment.End else Alignment.Start) {
+    Column(Modifier.fillMaxWidth()) {
         Box {
             Box(
-                Modifier.widthIn(max = 280.dp)
-                    .then(
-                        if (standalone) Modifier
-                        else Modifier.clip(tk.radiusLarge).background(
-                            if (message.core.isRecalled) colors.surfaceAlt else if (outgoing) colors.outgoing else colors.incomingBubble,
-                        ),
-                    )
-                    .combinedClickable(onClick = {}, onLongClick = { if (!message.core.isRecalled) menu = true })
-                    .padding(if (standalone) PaddingValues(2.dp) else PaddingValues(horizontal = tk.md, vertical = tk.sm)),
+                Modifier.fillMaxWidth().combinedClickable(
+                    onClick = {},
+                    onLongClick = { if (!message.core.isRecalled) menu = true },
+                ),
             ) {
-                // 送达状态在**气泡内部**（与 iOS 的 bottomTrailing 同位置）。
-                //
-                // 文本走 kit 的 trailing 插槽：文本气泡由 kit 绘制，只有它能为
-                // 勾号**留出空间**；叠加也能放对位置，但正文一长就压住末行文字。
-                // 其余内容类型是自带留白的卡片，叠加到右下角即可。
-                val statusSlot: (@Composable () -> Unit)? =
-                    if (deliveryState == MessageDeliveryState.NONE) {
-                        null
-                    } else {
-                        {
-                            MessageDeliveryStatus(
-                                state = deliveryState,
-                                onBubble = outgoing,
-                                onRetry = { vm.retry(message) },
-                            )
+                MessageBubble(
+                    message = presentation,
+                    currentUserId = me.orEmpty(),
+                    conversationKind = FlareConversationKind.Group,
+                    onMediaAction = { _, media ->
+                        mediaJob?.cancel()
+                        if (media is FlareFileContent) {
+                            vm.saveToDownloads(message)
+                        } else if (media is FlareImageContent || media is FlareVideoContent || media is FlareAudioContent) {
+                            mediaJob = mediaScope.launch {
+                                val path = vm.resolveMediaUrl(message)
+                                ensureActive()
+                                if (media is FlareImageContent) previewPath = path
+                                else playbackPath = path
+                            }
                         }
-                    }
-                val textLike = content?.contentType == null ||
-                    content.contentType == MessageContentType.TEXT ||
-                    content.contentType == MessageContentType.RICH_TEXT
-                MessageContentView(
-                    message,
-                    outgoing,
-                    vm,
-                    deliveryStatus = if (textLike) statusSlot else null,
-                ) { previewPath = it }
-                if (!textLike && statusSlot != null) {
-                    Box(
-                        Modifier.align(Alignment.BottomEnd).padding(end = 6.dp, bottom = 4.dp),
-                    ) { statusSlot() }
-                }
+                    },
+                    onResend = if (outgoing) ({ vm.retry(message) }) else null,
+                )
             }
-            MessageActionMenu(message, content, menu, clipboard, vm) { menu = it }
+            MessageActionMenu(message, menu, clipboard, vm) { menu = it }
         }
 
         ReactionStrip(message, me, vm)
     }
     previewPath?.let { p -> MediaPreviewDialog(p) { previewPath = null } }
+    playbackPath?.let { p -> PlatformPlaybackDialog(p) { playbackPath = null } }
 }
 
-/** 长按动作菜单：可用性由**核心**判定（`domain::message_actions`），这里只渲染结果。
+private fun AppMessage.toPresentation(deliveryState: MessageDeliveryState): FlareMessageData {
+    val rawTimestamp = core.createdAt.takeIf { it > 0L } ?: core.clientCreatedAt
+    val timestampMs = if (rawTimestamp in 1 until 10_000_000_000L) rawTimestamp * 1000 else rawTimestamp
+    return FlareMessageData(
+        id = appStableId,
+        senderId = core.senderId,
+        senderName = senderTitle,
+        senderAvatarUrl = core.senderAvatar.takeIf { it.isNotBlank() },
+        content = if (core.isRecalled) {
+            FlareNotificationContent("Message recalled")
+        } else {
+            core.content.toPresentationContent(previewText)
+        },
+        timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestampMs)),
+        status = when (deliveryState) {
+            MessageDeliveryState.NONE -> FlareMessageDeliveryStatus.Sent
+            MessageDeliveryState.SENDING -> FlareMessageDeliveryStatus.Sending
+            MessageDeliveryState.FAILED -> FlareMessageDeliveryStatus.Failed
+            MessageDeliveryState.DELIVERED -> FlareMessageDeliveryStatus.Delivered
+            MessageDeliveryState.READ -> FlareMessageDeliveryStatus.Read
+        },
+        edited = core.isEdited,
+    )
+}
+
+private fun com.flare.im.model.entity.MessageContent?.toPresentationContent(fallback: String): FlareMessageContent {
+    val content = this ?: return FlarePlaceholderContent(fallback)
+    val duration = (content.data["durationSec"] as? Number)?.toInt()
+        ?: ((content.data["durationMs"] as? Number)?.toInt() ?: 0) / 1000
+    return when (content.contentType) {
+        MessageContentType.TEXT, MessageContentType.RICH_TEXT, MessageContentType.QUOTE,
+        MessageContentType.FORWARD, MessageContentType.THREAD ->
+            FlareTextContent(content.str("text", "plainText", "body", "markdown") ?: fallback)
+        MessageContentType.IMAGE, MessageContentType.IMAGE_GROUP ->
+            imagePath(content)?.let { FlareImageContent(it, alt = content.str("description", "title")) }
+                ?: FlarePlaceholderContent(fallback)
+        MessageContentType.VIDEO ->
+            imagePath(content)?.let { FlareVideoContent(it, content.str("thumbnailUrl", "poster"), duration) }
+                ?: FlarePlaceholderContent(fallback)
+        MessageContentType.AUDIO -> FlareAudioContent(imagePath(content).orEmpty(), duration)
+        MessageContentType.FILE -> FlareFileContent(
+            content.str("fileName", "filename", "name") ?: fallback,
+            imagePath(content).orEmpty(),
+            (content.data["size"] as? Number)?.toInt() ?: 0,
+        )
+        MessageContentType.LOCATION -> FlareLocationContent(
+            content.str("title", "name", "address") ?: "Location",
+            content.str("address").orEmpty(),
+        )
+        MessageContentType.STICKER -> FlareStickerContent(
+            url = imagePath(content).orEmpty(),
+            packageId = content.str("packageId", "package_id"),
+            stickerId = content.str("stickerId", "id"),
+        )
+        MessageContentType.EMOJI -> FlareEmojiContent(content.str("emoji", "key") ?: fallback)
+        MessageContentType.CARD ->
+            FlareCardContent(
+                content.str("title", "name") ?: fallback,
+                content.str("subtitle", "description"),
+                content.str("thumbnailUrl", "imageUrl"),
+            )
+        MessageContentType.LINK_CARD -> FlareLinkCardContent(
+            url = content.str("url").orEmpty(), title = content.str("title") ?: fallback,
+            description = content.str("description", "summary"), imageUrl = content.str("thumbnailUrl", "imageUrl"))
+        MessageContentType.VOTE -> FlarePollContent(
+            id = content.str("voteId").orEmpty(), title = content.str("headline", "title") ?: fallback,
+            options = (content.data["options"] as? List<*>)?.filterIsInstance<String>().orEmpty())
+        MessageContentType.TASK -> FlareTaskContent(
+            id = content.str("taskId").orEmpty(), title = content.str("title") ?: fallback,
+            detail = content.str("detail", "description").orEmpty(),
+            done = (content.data["metadata"] as? Map<*, *>)?.get("done").toString() == "true")
+        MessageContentType.SCHEDULE -> FlareCalendarContent(
+            id = content.str("scheduleId").orEmpty(), title = content.str("title") ?: fallback,
+            timeRange = content.str("timeRange").orEmpty())
+        MessageContentType.MINI_PROGRAM -> FlareMiniAppContent(
+            appId = content.str("appId").orEmpty(), title = content.str("title") ?: fallback,
+            pagePath = content.str("pagePath").orEmpty(), thumbnailUrl = content.str("thumbnailUrl"),
+            description = content.str("description"))
+        MessageContentType.ANNOUNCEMENT -> FlareAnnouncementContent(
+            id = content.str("announcementId").orEmpty(), title = content.str("headline", "title") ?: fallback,
+            body = content.str("body").orEmpty())
+        MessageContentType.SYSTEM, MessageContentType.NOTIFICATION ->
+            FlareNotificationContent(fallback)
+        MessageContentType.CUSTOM, MessageContentType.PLACEHOLDER ->
+            FlareGenericContent(content.contentType.name.lowercase(), fallback)
+    }
+}
+
+/** 长按动作面板：kit 的 [MessageActionSheet]。哪些动作可用由**核心**判定（`domain::message_actions`），
+ *  标准动作的文案、图标和分组归 kit；这里只问核心、隐藏本 app 没实现的动作、分发用户选中的动作。
  *
  *  曾经是一个无条件全显的静态列表：Pin 与 Unpin 同时出现、别人的消息上也显示
- *  Recall、图片上也显示 Edit —— 点了必然失败。规则散在各端就会这样，
- *  现在四端共用核心那一份。 */
+ *  Recall、图片上也显示 Edit —— 点了必然失败。后来又用 Material 的下拉菜单自己画了一份，
+ *  和另外三端的 kit 面板长得不一样。 */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MessageActionMenu(
     message: AppMessage,
-    content: com.flare.im.model.entity.MessageContent?,
     expanded: Boolean,
     clipboard: androidx.compose.ui.platform.ClipboardManager,
     vm: MessagingViewModel,
     onExpandedChange: (Boolean) -> Unit,
 ) {
-    val colors = FlareTheme.colors
-    val tk = FlareTheme.tokens
-    var availability by remember(message.appStableId) { mutableStateOf<Map<String, Any?>>(emptyMap()) }
+    var availability by remember(message.appStableId) { mutableStateOf<FlareMessageActionAvailability?>(null) }
     var editing by remember { mutableStateOf(false) }
 
-    // 菜单打开时才问核心：长按是低频动作，一次 FFI 往返远在 100ms 交互预算之内，
-    // 而把判定留在端上就等于再抄一份规则。
+    // 面板打开时才问核心：长按是低频动作，一次 FFI 往返远在 100ms 交互预算之内。
+    // 答案回来之前不弹面板（否则先弹出一个空弹层）；核心说此刻一个动作都没有，就不打开。
     LaunchedEffect(expanded, message.appStableId) {
-        if (expanded) availability = vm.actionAvailability(message)
+        if (!expanded) return@LaunchedEffect
+        availability = null
+        val answer = vm.actionAvailability(message)
+        availability = answer
+        if (answer == FlareMessageActionAvailability()) onExpandedChange(false)
     }
-    fun can(key: String): Boolean = availability[key] == true
 
     if (editing) {
         MessageEditDialog(
@@ -151,50 +262,46 @@ private fun MessageActionMenu(
         )
     }
 
-    DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
-        if (can("canReact")) {
-            Row(Modifier.padding(horizontal = tk.md, vertical = tk.xs), horizontalArrangement = Arrangement.spacedBy(tk.sm)) {
-                quickReactions.forEach { emoji ->
-                    Text(
-                        emoji,
-                        style = FlareTheme.type.title,
-                        modifier = Modifier.clip(tk.pill).clickable { onExpandedChange(false); vm.messageAction("react", message, emoji) }.padding(2.dp),
-                    )
+    val allowed = availability
+    if (!expanded || allowed == null) return
+    ModalBottomSheet(
+        onDismissRequest = { onExpandedChange(false) },
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = flareColors().bgSecondary,
+    ) {
+        MessageActionSheet(
+            availability = allowed,
+            // 这个 app 没有多选，也没有消息预览。
+            hiddenActions = setOf("multiSelect", "preview"),
+            actions = listOfNotNull(
+                FlareMessageMenuEntry("editRich", stringResource(R.string.msg_action_edit_rich), "rich-text")
+                    .takeIf { allowed.canEdit },
+                FlareMessageMenuEntry(
+                    "deleteEveryone", stringResource(R.string.msg_action_delete_everyone),
+                    "delete", FlareMessageMenuGroup.Destructive,
+                ).takeIf { allowed.canDelete && allowed.canRecall },
+            ),
+            onAction = { id ->
+                onExpandedChange(false)
+                when (id) {
+                    "resend" -> vm.retry(message)
+                    "reply" -> vm.replyTo(message)
+                    "forward" -> vm.buildAndSend(MessageBuildOp.CreateForward)
+                    "copy" -> clipboard.setText(AnnotatedString(message.previewText))
+                    "edit" -> { editing = true }
+                    "save" -> vm.saveToDownloads(message)
+                    "delete" -> vm.messageAction("deleteSelf", message)
+                    // recall / pin / pinSelf / unpin / mark / editRich / deleteEveryone 都是同名的消息操作
+                    else -> vm.messageAction(id, message)
                 }
-            }
-            HorizontalDivider(color = colors.hairline)
-        }
-
-        @Composable
-        fun item(labelRes: Int, onClick: () -> Unit) {
-            DropdownMenuItem(
-                text = { Text(stringResource(labelRes)) },
-                onClick = { onExpandedChange(false); onClick() },
-            )
-        }
-
-        if (can("canResend")) item(R.string.msg_action_resend) { vm.retry(message) }
-        if (can("canReply")) item(R.string.msg_action_reply) { vm.replyTo(message) }
-        if (can("canForward")) item(R.string.msg_action_forward) { vm.buildAndSend(MessageBuildOp.CreateForward) }
-        if (can("canCopy")) item(R.string.msg_action_copy) { clipboard.setText(AnnotatedString(message.previewText)) }
-        if (can("canEdit")) {
-            item(R.string.msg_action_edit) { editing = true }
-            item(R.string.msg_action_edit_rich) { vm.messageAction("editRich", message) }
-        }
-        if (can("canRecall")) item(R.string.msg_action_recall) { vm.messageAction("recall", message) }
-        if (can("canPin")) {
-            item(R.string.msg_action_pin) { vm.messageAction("pin", message) }
-            item(R.string.msg_action_pin_self) { vm.messageAction("pinSelf", message) }
-        }
-        if (can("canUnpin")) item(R.string.msg_action_unpin) { vm.messageAction("unpin", message) }
-        if (can("canDelete")) {
-            item(R.string.msg_action_mark) { vm.messageAction("mark", message) }
-            item(R.string.msg_action_delete_self) { vm.messageAction("deleteSelf", message) }
-            if (can("canRecall")) item(R.string.msg_action_delete_everyone) { vm.messageAction("deleteEveryone", message) }
-        }
-        if (can("canSave") && content?.contentType in mediaContentTypes) {
-            item(R.string.msg_action_save) { vm.saveToDownloads(message) }
-        }
+            },
+            onReact = { emoji ->
+                onExpandedChange(false)
+                vm.messageAction("react", message, emoji)
+            },
+        )
+        // 面板延伸到手势条下面，最后一组要让开它。
+        Spacer(Modifier.navigationBarsPadding())
     }
 }
 
@@ -248,10 +355,10 @@ private fun ReactionStrip(message: AppMessage, me: String?, vm: MessagingViewMod
                     .padding(horizontal = tk.sm, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(r.emoji, style = FlareTheme.type.caption)
+                Text(r.emoji, style = MaterialTheme.typography.bodySmall)
                 if (r.count > 0) {
                     Spacer(Modifier.width(2.dp))
-                    Text("${r.count}", style = FlareTheme.type.caption, color = if (mine) colors.brand else colors.textSecondary)
+                    Text("${r.count}", style = MaterialTheme.typography.bodySmall, color = if (mine) colors.brand else colors.textSecondary)
                 }
             }
         }

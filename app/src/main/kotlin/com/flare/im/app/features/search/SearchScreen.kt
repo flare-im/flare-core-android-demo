@@ -1,5 +1,7 @@
 package com.flare.im.app.features.search
 
+import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -40,7 +42,7 @@ fun SearchScreen(store: FlareAppStore) {
         Spacer(Modifier.height(tk.md))
         LazyColumn(verticalArrangement = Arrangement.spacedBy(tk.sm)) {
             items(results, key = { it.appStableId }) { m ->
-                Column { Text(m.senderTitle, style = FlareTheme.type.captionStrong, color = colors.brand); Text(m.previewText, style = FlareTheme.type.callout, color = colors.textPrimary) }
+                Column { Text(m.senderTitle, style = MaterialTheme.typography.labelMedium, color = colors.brand); Text(m.previewText, style = MaterialTheme.typography.bodyMedium, color = colors.textPrimary) }
             }
         }
     }

@@ -27,10 +27,10 @@ class SdkManagedTokenTest {
     }
 
     @Test
-    fun `登录页有网关地址与接入 token 入口，没有签名密钥`() {
+    fun `登录页只有网关入口且不暴露 token 或签名密钥`() {
         val s = src("app/src/main/kotlin/com/flare/im/app/features/auth/LoginScreen.kt")
         assertTrue(s.contains("value = draft.httpUrl"))
-        assertTrue(s.contains("value = draft.accessToken"))
+        assertFalse(s.contains("value = draft.accessToken"))
         assertFalse(s.contains("tokenSecret"))
     }
 

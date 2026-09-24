@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Language of the kit's own strings (KitStrings.kt); must match this resource set. -->
+    <string name="flare_kit_language">en</string>
     <string name="app_name">FlareIM</string>
 
     <!-- Navigation / sections -->
@@ -92,20 +94,8 @@
     <!-- SDK Lab -->
     <string name="lab_title">SDK Status</string>
     <string name="lab_no_ops">No lab operations yet.</string>
-    <string name="msg_action_reply">Reply</string>
-    <string name="msg_action_forward">Forward</string>
-    <string name="msg_action_copy">Copy</string>
-    <string name="msg_action_edit">Edit</string>
     <string name="msg_action_edit_rich">Edit rich text</string>
-    <string name="msg_action_recall">Recall</string>
-    <string name="msg_action_pin">Pin</string>
-    <string name="msg_action_pin_self">Pin for me</string>
-    <string name="msg_action_unpin">Unpin</string>
-    <string name="msg_action_mark">Flag</string>
-    <string name="msg_action_delete_self">Delete for me</string>
     <string name="msg_action_delete_everyone">Delete for everyone</string>
-    <string name="msg_action_save">Save to downloads</string>
-    <string name="msg_action_resend">Resend</string>
     <string name="msg_state_recalled">Message recalled</string>
     <string name="msg_state_failed">Failed · tap to retry</string>
     <string name="msg_state_sending">Sending…</string>
@@ -125,8 +115,8 @@
     <string name="conv_unmute">Unmute</string>
     <string name="conv_archive">Archive</string>
     <string name="conv_unarchive">Unarchive</string>
-    <string name="conv_mark_unread">Mark unread</string>
-    <string name="conv_clear_local">Clear local</string>
+    <string name="conv_mark_unread">Mark as unread</string>
+    <string name="conv_clear_local">Clear local history</string>
     <string name="conv_delete">Delete</string>
     <string name="conv_direct">Direct</string>
     <string name="conv_group">Group</string>
@@ -160,4 +150,6 @@
     <string name="fmt_quote">Quote</string>
     <string name="fmt_bullet">Bulleted list</string>
     <string name="fmt_ordered">Numbered list</string>
+    <string name="choose_conversation">Choose a conversation</string>
+    <string name="choose_conversation_hint">Open a conversation from the list to start reading.</string>
 </resources>

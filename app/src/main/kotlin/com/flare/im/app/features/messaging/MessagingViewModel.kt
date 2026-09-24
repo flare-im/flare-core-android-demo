@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.flare.im.ui.FlareMessageActionAvailability
 
 /** 起会话草稿。 */
 data class StartConversationDraft(
@@ -36,6 +37,12 @@ data class StartConversationDraft(
  * 消息特性 ViewModel：会话列表 + 时间线 + 全部消息/会话操作。
  * 持共享 session/repository/environment + weak lifecycle；经 scope 调 SDK（Map 形态 payload）。
  */
+/** 标记类型「重要」（核心 MarkType::Important）。 */
+private const val MARK_TYPE_IMPORTANT = 1
+
+/** 标记默认色；核心要求 color 非空，不关心颜色时用它。 */
+private const val DEFAULT_MARK_COLOR = "#F5A623"
+
 class MessagingViewModel(
     private val session: AppSession,
     private val repository: ViewDataRepository,
@@ -192,21 +199,33 @@ class MessagingViewModel(
         }
     }
 
-    /** 语音录制完成 → media.uploadFile（best-effort）→ buildAudio → 发送。 */
-    fun sendAudio(path: String, durationMs: Int) = scope.launch {
-        val conversationId = environment.selectedConversationId.value ?: return@launch
-        environment.run("media.uploadFile") {
-            val sdk = client ?: error("Login before sending audio")
-            val audioId = "audio-${System.currentTimeMillis()}"
-            runCatching { sdk.media.uploadFile(mapOf("path" to path)) }
-            val message = MessageBuilder.build(
-                sdk, conversationId, MessageBuildOp.CreateAudio,
-                mapOf("audioId" to audioId, "sourceUrl" to path, "durationMs" to durationMs),
-                selectedMessages.value,
-            )
+    /** 宿主文件选择器 → CreateFile（真实名字 / mime / 大小，不再用表单里的假值）。 */
+    fun sendPickedFile(name: String, uri: String?, mimeType: String?, size: Long?) = buildAndSend(
+        MessageBuildOp.CreateFile,
+        buildMap<String, Any?> {
+            put("fileId", "picked-${System.currentTimeMillis()}")
+            put("fileName", name.ifBlank { "file" })
+            uri?.takeIf { it.isNotBlank() }?.let { put("url", it) }
+            mimeType?.takeIf { it.isNotBlank() }?.let { put("mimeType", it) }
+            size?.let { put("size", it) }
+        },
+    )
+
+    /** 平台契约错误（CANCELLED 之外）记进 Lab 日志，和 send 失败同一条通道。 */
+    fun notePlatformError(operation: String, detail: String) = environment.appendLab(operation, "error", detail)
+
+    /** Await acceptance so the voice composer can retain a failed clip for retry. */
+    suspend fun sendVoiceClip(path: String, durationMs: Int): Boolean {
+        val conversationId = environment.selectedConversationId.value ?: return false
+        val sdk = client ?: return false
+        return try {
+            val message = MessageBuilder.build(sdk, conversationId, MessageBuildOp.CreateAudio,
+                mapOf("audioId" to path, "sourcePath" to path, "sourceUrl" to path, "mimeType" to "audio/wav", "durationMs" to durationMs), selectedMessages.value)
             sendBuilt(sdk, message, conversationId)
-        }
+            true
+        } catch (error: Throwable) { environment.appendLab("voice.send", "error", error.message ?: "Failed"); false }
     }
+    fun sendAudio(path: String, durationMs: Int) = scope.launch { sendVoiceClip(path, durationMs) }
 
     fun buildAndSend(op: MessageBuildOp, payload: Map<String, Any?> = emptyMap()) = scope.launch {
         val conversationId = environment.selectedConversationId.value ?: return@launch
@@ -301,26 +320,30 @@ class MessagingViewModel(
         return null
     }
 
-    /** 一条消息此刻可用的动作，由**核心**判定（规则在 `domain::message_actions`）。 */
-    suspend fun actionAvailability(message: AppMessage): Map<String, Any?> {
-        val sdk = client ?: return emptyMap()
+    /** 一条消息此刻可用的动作，由**核心**判定（规则在 `domain::message_actions`），交给 kit 的消息面板。 */
+    suspend fun actionAvailability(message: AppMessage): FlareMessageActionAvailability {
+        val sdk = client ?: return FlareMessageActionAvailability()
         val key = message.appStableId
-        return runCatching {
+        // dispatchMessage 的请求是平铺的：`op` 与参数字段同层（桥把 `op` 取出，其余整体作为参数 JSON，
+        // 与 Apple 桥一致）。此前参数包在 `params` 里，核心读不到 messageId 而报错，
+        // 错误又被吞掉，长按只剩一个空菜单。
+        val answer = runCatching {
             sdk.messages.dispatchMessage(
                 mapOf(
                     "op" to "action_availability",
-                    "params" to mapOf(
-                        "messageId" to (message.core.serverId.ifBlank { message.core.clientMsgId }),
-                        "multiSelectMode" to false,
-                        "isPending" to (key in _pendingMessageKeys.value),
-                        "isFailed" to (key in _failedMessageKeys.value),
-                        "isPinned" to (key in _pinnedMessageKeys.value),
-                        "isConnected" to (session.connectionState.value in
-                            setOf(ConnectionState.CONNECTED, ConnectionState.READY)),
-                    ),
+                    "messageId" to (message.core.serverId.ifBlank { message.core.clientMsgId }),
+                    "multiSelectMode" to false,
+                    "isPending" to (key in _pendingMessageKeys.value),
+                    "isFailed" to (key in _failedMessageKeys.value),
+                    "isPinned" to (key in _pinnedMessageKeys.value),
+                    "isConnected" to (session.connectionState.value in
+                        setOf(ConnectionState.CONNECTED, ConnectionState.READY)),
                 ),
             )
+        }.onFailure { error ->
+            Log.w("FlareMessageActions", "action_availability failed for $key", error)
         }.getOrDefault(emptyMap())
+        return FlareMessageActionAvailability.fromJson(answer)
     }
 
     fun messageAction(
@@ -340,8 +363,10 @@ class MessagingViewModel(
                 "editRich" -> sdk.messages.editRichDocByMessageId(req + ("markdown" to "## Edited rich doc\n\n- **bold** point\n- _italic_ point"))
                 "deleteSelf" -> sdk.messages.deleteMessageForSelf(req)
                 "deleteEveryone" -> sdk.messages.deleteMessageForEveryone(req)
-                "react" -> sdk.messages.addReaction(req + ("reaction" to reaction))
-                "unreact" -> sdk.messages.removeReaction(req + ("reaction" to reaction))
+                // 核心读的是 emoji（add_reaction/remove_reaction）。发成 reaction 时核心回
+                // INVALID_PARAMETER，错误只进实验室日志，界面上点了表情毫无反应。
+                "react" -> sdk.messages.addReaction(req + ("emoji" to reaction))
+                "unreact" -> sdk.messages.removeReaction(req + ("emoji" to reaction))
                 "pin" -> {
                     sdk.messages.pinMessageById(req + ("scope" to 0))
                     _pinnedMessageKeys.update { it + message.appStableId }
@@ -351,8 +376,10 @@ class MessagingViewModel(
                     sdk.messages.unpinMessageById(req + ("scope" to 0))
                     _pinnedMessageKeys.update { it - message.appStableId }
                 }
-                "mark" -> sdk.messages.markMessageById(req)
-                "unmark" -> sdk.messages.unmarkMessageById(req)
+                // mark_by_message_id 要 markType(i32) + color(非空字符串)，unmark 要 markType；
+                // 只发消息 id 必然 INVALID_PARAMETER。取值与 web 参考示例一致（重要 + 默认色）。
+                "mark" -> sdk.messages.markMessageById(req + ("markType" to MARK_TYPE_IMPORTANT) + ("color" to DEFAULT_MARK_COLOR))
+                "unmark" -> sdk.messages.unmarkMessageById(req + ("markType" to MARK_TYPE_IMPORTANT))
                 else -> error("Unsupported action $action")
             }
             openConversationInternal(message.conversationId)
@@ -418,7 +445,10 @@ class MessagingViewModel(
     private suspend fun syncConversationList(reason: String) {
         val sdk = client ?: error("Login before loading conversations")
         repository.openConversationList(sdk, reason)
-        if (environment.selectedConversationId.value == null) {
+        // Opening the most recent conversation is a start-up choice only. Doing it on every sync
+        // meant that after the user went back to the list, pinning, muting or refreshing a row
+        // jumped straight into the first conversation (on a phone that replaces the list).
+        if (reason == "bootstrap" && environment.selectedConversationId.value == null) {
             environment.setSelectedConversationId(repository.conversations.value.firstOrNull()?.conversationId)
         }
     }

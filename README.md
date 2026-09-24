@@ -1,46 +1,74 @@
-# flare-core-android-app
+# Flare Core Android Reference App
 
-`flare-core-android-sdk` 的生产级 Android IM 应用模板，目录分层与 `flare-core-flutter-app` 对齐。
+## What This Demonstrates
 
-## 本地运行
+An official Flare design consumer under active canonical UI migration.
+Kotlin, Compose, Android Navigation and lifecycle-aware ViewModels.
 
-示例 app 通过 Gradle composite module 直接依赖 `../../packages/flare-core-android-sdk`，应用层只消费 SDK generated 强类型模型。
+## Architecture
+
+`AppSession` owns the public `FlareImClient`; repositories and ViewModels
+map SDK state into conversation, lifecycle, message and capability contracts.
+Screens compose kit components and invoke SDK actions through their adapters.
+
+## flare-im-design Package Used
+
+`com.flare.im:im-ui-compose:2.0.0-rc.1`, substituted by the relative workspace composite build.
+
+Public `IMAppKit`, `ConversationRow`, `ConversationHeader`, `MessageBubble`,
+`Composer` and `ImagePreview` are integrated. The old hand-drawn chat header
+is removed. Search sheets, conversation menus and other local composables
+are still migration work, not already canonical.
+
+## SDK Adapter
+
+SDK authentication, persistence, event subscriptions, lifecycle transitions,
+retry and media transfer stay in the SDK/application layer. Public kit data
+contracts and intents form the visual boundary; do not import private renderers.
+
+## Run
 
 ```bash
 export ANDROID_HOME=/path/to/android/sdk
-../flare-core-flutter-app/android/gradlew :app:testDebugUnitTest
+../flare-core-flutter-app/android/gradlew :app:testDebugUnitTest :app:lintDebug :app:assembleDebug
+../flare-core-flutter-app/android/gradlew :app:compileDebugAndroidTestKotlin
 ```
 
-Debug 打包需要先同步 Rust Android FFI `.so` 到 Android SDK package：
+## Demo Mode
 
-```bash
-cd ../../../flare-im-core-sdk
-export ANDROID_NDK_ROOT=/path/to/android/sdk/ndk/28.2.13676358
-export NDK_TOOLCHAIN="$ANDROID_NDK_ROOT/toolchains/llvm/prebuilt/darwin-x86_64/bin"
-export CC_aarch64_linux_android="$NDK_TOOLCHAIN/aarch64-linux-android35-clang"
-export CXX_aarch64_linux_android="$NDK_TOOLCHAIN/aarch64-linux-android35-clang++"
-export AR_aarch64_linux_android="$NDK_TOOLCHAIN/llvm-ar"
-export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="$CC_aarch64_linux_android"
-cargo xtask build android
-cd ../flare-im-core-client-sdk/examples/flare-core-android-app
-scripts/sync_ffi.sh
-../flare-core-flutter-app/android/gradlew :app:assembleDebug
-```
+The runnable app uses the real SDK. There is no automatic fake-data fallback.
+Unit/widget fixtures are test inputs, not a supported product demo mode. Shared
+scenario-driven offline data and complete five-platform feature parity remain
+tracked in [the migration report](../CANONICAL_UI_MIGRATION_REPORT.md).
 
-当前样板按 Rust FFI artifact 对齐为 `arm64-v8a` 单 ABI。核心传输层使用 rustls/WebPKI，Android 构建不需要额外提供 OpenSSL。
+## Real SDK Mode
 
-## 目录结构
+Enter a test user ID and the WebSocket and HTTP gateway endpoints on the login
+screen. Credentials are issued by the configured gateway; do not put signing
+keys in UI code. Use isolated test accounts for destructive or send workflows.
 
-```text
-app/src/main/kotlin/com/flare/im/
-├── app/              # Application / Activity 入口
-├── application/      # 状态编排、SDK 事件桥接
-├── domain/
-├── infrastructure/   # SDK 适配器、仓储、mapper、媒体
-├── interface/        # Compose 页面、主题、组件
-└── shared/
-assets/
-scripts/
-```
+## Supported Features
 
-规范见 [`examples/STRUCTURE.md`](../STRUCTURE.md)。参考实现：`flare-core-flutter-app`。
+Conversation/message flows are the Core scope: session initialization, list,
+opening a conversation, timeline, composer, send/retry, message actions, search,
+media and SDK diagnostics. Integration and canonical-renderer coverage differ by
+platform; see the [feature matrix and remaining gaps](../CANONICAL_UI_MIGRATION_REPORT.md).
+Contact-directory, group-directory and relationship navigation require a Social
+adapter. Group conversations are messaging targets, not group administration.
+
+## Platform-Specific Integration
+
+Activity lifecycle, system back, IME, navigation, permissions, file/camera
+selection and JNI loading are host responsibilities. Use `scripts/sync_ffi.sh`
+after building the matching native SDK artifacts.
+
+## Migration Status
+
+Unit-test/lint/assemble tasks pass. Instrumentation compile reports NO-SOURCE;
+that is not a Compose UI test pass. No Android device was attached. Typography
+and spacing aliases now use kit tokens, but native menu/workspace and six-brand
+integration remain incomplete.
+
+The [migration report](../CANONICAL_UI_MIGRATION_REPORT.md) records the current
+feature matrix, test evidence and outstanding P1/P2 work. Reusable UI fixes
+belong in the design kit, not in local visual overrides.

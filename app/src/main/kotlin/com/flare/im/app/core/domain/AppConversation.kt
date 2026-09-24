@@ -17,7 +17,9 @@ data class AppConversation(
 
     val appPreview: String
         get() = core.draft.nonBlank()?.let { "Draft: $it" }
-            ?: core.lastMessagePreview.nonBlank()
+            // The core stores previews in its storage format ({"k":"im.preview.…","a":{…}}); the list
+            // showed that JSON verbatim. Decode it the same way message previews already are.
+            ?: core.lastMessagePreview.nonBlank()?.formatStoragePreview()
             ?: core.lastMessage?.previewText()
             ?: core.description.nonBlank()
             ?: "No messages yet"

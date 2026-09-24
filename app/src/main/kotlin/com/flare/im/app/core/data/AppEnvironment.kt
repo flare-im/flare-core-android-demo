@@ -51,7 +51,9 @@ class AppEnvironment {
     fun updateLoginDraft(transform: (LoginDraft) -> LoginDraft) { _loginDraft.update(transform) }
 
     fun appendLab(operation: String, status: String, detail: String) {
-        _labResults.update { (it + LabResult(operation, status, detail)).takeLast(200) }
+        // 用序号而不是毫秒时间戳区分记录：同一毫秒记下两条（嵌套的 run）时，SDK 状态页的
+        // LazyColumn key 重复，一打开就崩。序号在 update 里按上一条递增，并发写入也不会重号。
+        _labResults.update { (it + LabResult((it.lastOrNull()?.id ?: 0L) + 1, operation, status, detail)).takeLast(200) }
     }
 
     /** 统一执行包裹：busy 置位 + 清错 + 失败记 lastError/lab。 */

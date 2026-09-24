@@ -1,17 +1,21 @@
 package com.flare.im.app.features.shell
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Chat
+import androidx.compose.material.icons.outlined.PermMedia
+import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Science
+import androidx.compose.material.icons.outlined.Settings
+import com.flare.im.app.R
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -31,10 +35,8 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.flare.im.model.entity.NetworkInterfaceKind
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.flare.im.app.core.FlareAppStore
 import com.flare.im.app.core.designsystem.FlareAppTheme
 import com.flare.im.app.core.designsystem.FlareTheme
@@ -46,6 +48,17 @@ import com.flare.im.app.features.messaging.conversationlist.ConversationListScre
 import com.flare.im.app.features.sdklab.SdkLabScreen
 import com.flare.im.app.features.search.SearchScreen
 import com.flare.im.app.features.settings.SettingsScreen
+import com.flare.im.ui.EmptyState as KitEmptyState
+import com.flare.im.ui.FlareApplicationFeatures
+import com.flare.im.ui.FlareApplicationNavigationBadge
+import com.flare.im.ui.FlareApplicationNavigationGroup
+import com.flare.im.ui.FlareApplicationNavigationItem
+import com.flare.im.ui.FlareApplicationResponsiveMode
+import com.flare.im.ui.FlareApplicationWorkspacePane
+import com.flare.im.ui.FlareCapabilitySet
+import com.flare.im.ui.FlareIMAppConfiguration
+import com.flare.im.ui.IMAppKit
+import com.flare.im.ui.resolveApplicationResponsiveMode
 
 /** App 根：主题 + 登录路由 + 自适应 workbench 导航。 */
 @Composable
@@ -132,38 +145,100 @@ private fun currentInterfaceKind(connectivity: ConnectivityManager?): NetworkInt
 
 @Composable
 private fun WorkbenchScreen(store: FlareAppStore) {
-    val colors = FlareTheme.colors
     val section by store.environment.section.collectAsState()
     val selectedId by store.environment.selectedConversationId.collectAsState()
+    val conversations by store.messagingViewModel.conversations.collectAsState()
     val showChat = section == AppSection.Conversations && selectedId != null
 
-    Scaffold(
-        containerColor = colors.background,
-        bottomBar = { if (!showChat) FlareNavBar(store, section) },
-    ) { padding ->
-        Box(Modifier.padding(padding).fillMaxSize()) {
-            when (section) {
-                AppSection.Conversations -> if (showChat) ChatScreen(store) else ConversationListScreen(store)
-                AppSection.Search -> SearchScreen(store)
-                AppSection.SdkLab -> SdkLabScreen(store)
-                AppSection.Settings -> SettingsScreen(store)
-            }
-        }
+    // 导航是状态驱动的（section + 选中会话），没有返回栈；不接系统返回，返回键就直接结束 Activity。
+    // 返回的顺序与界面层级一致：聊天 → 会话列表，其它分区 → 消息。
+    BackHandler(enabled = showChat) { store.environment.setSelectedConversationId(null) }
+    BackHandler(enabled = !showChat && section != AppSection.Conversations) {
+        store.environment.setSection(AppSection.Conversations)
     }
-}
 
-@Composable
-private fun FlareNavBar(store: FlareAppStore, section: AppSection) {
-    val colors = FlareTheme.colors
-    NavigationBar(containerColor = colors.surface) {
-        AppSection.entries.forEach { item ->
-            NavigationBarItem(
-                selected = section == item,
-                onClick = { store.environment.setSection(item) },
-                icon = { Box(Modifier.size(6.dp).clip(CircleShape).background(if (section == item) colors.brand else colors.textTertiary)) },
-                label = { Text(stringResource(item.titleRes), style = FlareTheme.type.caption) },
-                colors = NavigationBarItemDefaults.colors(indicatorColor = colors.brandSoft),
-            )
+    // enableEdgeToEdge 让内容铺到状态栏、手势条与键盘之下（Android 15 起系统强制）。工作台自己不让位，
+    // 页头就压在状态栏里（聊天返回键点不到），输入区压在手势条上，键盘还会盖住发送键。
+    // 在工作台根部统一让出 safeDrawing（含 IME）并消费掉；kit 底部导航随之不再重复加导航栏内边距。
+    BoxWithConstraints(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+        val mode = resolveApplicationResponsiveMode(maxWidth)
+        val unread = conversations.sumOf { it.core.unreadCount }
+        val groups = listOf(
+            FlareApplicationNavigationGroup(
+                id = "reference",
+                items = listOf(
+                    FlareApplicationNavigationItem(
+                        id = "chats",
+                        label = stringResource(R.string.nav_messages),
+                        icon = "chats",
+                        badge = unread.takeIf { it > 0 }?.let {
+                            FlareApplicationNavigationBadge(
+                                count = it,
+                                label = "Unread conversations",
+                            )
+                        },
+                    ),
+                    FlareApplicationNavigationItem("search", stringResource(R.string.nav_search), "search"),
+                    FlareApplicationNavigationItem("media", "Media", "image", enabled = false),
+                    FlareApplicationNavigationItem("settings", stringResource(R.string.nav_settings), "settings"),
+                    FlareApplicationNavigationItem("sdk-lab", stringResource(R.string.nav_sdk_status), "diagnostics"),
+                ),
+            ),
+        )
+        val activeId = when (section) {
+            AppSection.Conversations -> "chats"
+            AppSection.Search -> "search"
+            AppSection.SdkLab -> "sdk-lab"
+            AppSection.Settings -> "settings"
         }
+        val activePane = if (
+            mode == FlareApplicationResponsiveMode.Mobile &&
+            section == AppSection.Conversations && !showChat
+        ) FlareApplicationWorkspacePane.Primary else FlareApplicationWorkspacePane.Content
+
+        IMAppKit(
+            configuration = FlareIMAppConfiguration(
+                features = FlareApplicationFeatures(
+                    contacts = false,
+                    groups = false,
+                    calls = false,
+                    media = false,
+                ),
+                capabilities = FlareCapabilitySet(setOf("reply", "media", "retry", "messageActions")),
+            ),
+            groups = groups,
+            activeNavigationId = activeId,
+            onNavigate = { id ->
+                when (id) {
+                    "chats" -> store.environment.setSection(AppSection.Conversations)
+                    "search" -> store.environment.setSection(AppSection.Search)
+                    "settings" -> store.environment.setSection(AppSection.Settings)
+                    "sdk-lab" -> store.environment.setSection(AppSection.SdkLab)
+                }
+            },
+            destination = {
+                com.flare.im.ui.AppLayout(
+                    primary = if (section == AppSection.Conversations) {
+                        { ConversationListScreen(store) }
+                    } else null,
+                    activePane = activePane,
+                    content = {
+                        when (section) {
+                            AppSection.Conversations -> if (showChat) {
+                                ChatScreen(store)
+                            } else {
+                                KitEmptyState(
+                                    title = stringResource(R.string.choose_conversation),
+                                    description = stringResource(R.string.choose_conversation_hint),
+                                )
+                            }
+                            AppSection.Search -> SearchScreen(store)
+                            AppSection.SdkLab -> SdkLabScreen(store)
+                            AppSection.Settings -> SettingsScreen(store)
+                        }
+                    },
+                )
+            },
+        )
     }
 }

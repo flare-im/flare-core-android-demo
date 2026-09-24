@@ -1,5 +1,7 @@
 package com.flare.im.app.features.settings
 
+import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -29,16 +31,16 @@ fun SettingsScreen(store: FlareAppStore) {
     val conn by vm.connectionState.collectAsState()
     Column(Modifier.fillMaxSize().padding(tk.lg).verticalScroll(rememberScrollState())) {
         SectionTitle(stringResource(R.string.nav_settings))
-        Text(stringResource(R.string.settings_appearance), style = FlareTheme.type.headline, color = colors.textPrimary)
+        Text(stringResource(R.string.settings_appearance), style = MaterialTheme.typography.titleMedium, color = colors.textPrimary)
         Row(horizontalArrangement = Arrangement.spacedBy(tk.sm), modifier = Modifier.padding(vertical = tk.sm)) {
             ThemeChoice.entries.forEach { t ->
                 FilterChip(theme == t, { vm.setTheme(t) }, { Text(t.name) }, colors = FilterChipDefaults.filterChipColors(selectedContainerColor = colors.brandSoft, selectedLabelColor = colors.brand))
             }
         }
         Spacer(Modifier.height(tk.md))
-        Text(stringResource(R.string.settings_session), style = FlareTheme.type.headline, color = colors.textPrimary)
-        Text("User: ${user ?: "-"}", style = FlareTheme.type.callout, color = colors.textSecondary)
-        Text("Connection: ${conn.name}", style = FlareTheme.type.callout, color = colors.textSecondary)
+        Text(stringResource(R.string.settings_session), style = MaterialTheme.typography.titleMedium, color = colors.textPrimary)
+        Text("User: ${user ?: "-"}", style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
+        Text("Connection: ${conn.name}", style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary)
         Spacer(Modifier.height(tk.sm))
         Row(horizontalArrangement = Arrangement.spacedBy(tk.sm)) {
             com.flare.im.ui.Button(label = stringResource(R.string.settings_refresh_diagnostics), variant = com.flare.im.ui.FlareButtonVariant.Secondary, onClick = { vm.refreshDiagnostics() })
@@ -47,12 +49,12 @@ fun SettingsScreen(store: FlareAppStore) {
         }
 
         Spacer(Modifier.height(tk.md))
-        Text(stringResource(R.string.settings_media_cache), style = FlareTheme.type.headline, color = colors.textPrimary)
+        Text(stringResource(R.string.settings_media_cache), style = MaterialTheme.typography.titleMedium, color = colors.textPrimary)
         val cacheStats by vm.cacheStats.collectAsState()
         LaunchedEffect(Unit) { vm.refreshCacheStats() }
         Text(
             stringResource(R.string.settings_cache_usage, cacheStats ?: "—"),
-            style = FlareTheme.type.callout, color = colors.textSecondary,
+            style = MaterialTheme.typography.bodyMedium, color = colors.textSecondary,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(tk.sm), modifier = Modifier.padding(vertical = tk.sm)) {
             listOf(128L, 256L, 512L).forEach { mb ->

@@ -1,5 +1,7 @@
 package com.flare.im.app.features.sdklab
 
+import androidx.compose.material3.MaterialTheme
+
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,7 +30,7 @@ fun SdkLabScreen(store: FlareAppStore) {
     val results by lab.labResults.collectAsState()
     val cid = store.environment.selectedConversationId.collectAsState().value ?: ""
     Column(Modifier.fillMaxSize().padding(tk.lg)) {
-        Text(stringResource(R.string.lab_title), style = FlareTheme.type.title, color = colors.textPrimary, modifier = Modifier.padding(bottom = tk.sm))
+        Text(stringResource(R.string.lab_title), style = MaterialTheme.typography.titleLarge, color = colors.textPrimary, modifier = Modifier.padding(bottom = tk.sm))
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
             LabGroup("Diagnostics", listOf("Refresh" to { lab.refreshDiagnostics() }))
             LabGroup("Lifecycle", listOf(
@@ -70,11 +72,11 @@ fun SdkLabScreen(store: FlareAppStore) {
         }
         HorizontalDivider(color = colors.hairline)
         if (results.isEmpty()) {
-            Text(stringResource(R.string.lab_no_ops), style = FlareTheme.type.callout, color = colors.textTertiary, modifier = Modifier.padding(tk.sm))
+            Text(stringResource(R.string.lab_no_ops), style = MaterialTheme.typography.bodyMedium, color = colors.textTertiary, modifier = Modifier.padding(tk.sm))
         } else {
             LazyColumn(Modifier.heightIn(max = 220.dp)) {
-                items(results.reversed(), key = { it.timestampMs }) { r ->
-                    Text("[${r.status}] ${r.operation} ${r.detail}", style = FlareTheme.type.caption, color = colors.textSecondary, modifier = Modifier.padding(vertical = 2.dp))
+                items(results.reversed(), key = { it.id }) { r ->
+                    Text("[${r.status}] ${r.operation} ${r.detail}", style = MaterialTheme.typography.bodySmall, color = colors.textSecondary, modifier = Modifier.padding(vertical = 2.dp))
                 }
             }
         }
@@ -86,10 +88,10 @@ private fun LabGroup(title: String, actions: List<Pair<String, () -> Unit>>) {
     val tk = FlareTheme.tokens
     val colors = FlareTheme.colors
     Column(Modifier.padding(vertical = tk.sm)) {
-        Text(title, style = FlareTheme.type.captionStrong, color = colors.textTertiary)
+        Text(title, style = MaterialTheme.typography.labelMedium, color = colors.textTertiary)
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(tk.xs)) {
             actions.forEach { (label, action) ->
-                AssistChip(onClick = action, label = { Text(label, style = FlareTheme.type.caption) })
+                AssistChip(onClick = action, label = { Text(label, style = MaterialTheme.typography.bodySmall) })
             }
         }
     }

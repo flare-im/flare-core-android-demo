@@ -18,22 +18,19 @@ class MessageMenuGatingTest {
     }
 
     @Test
-    fun `菜单按核心判定渲染，不是无条件全显的静态列表`() {
+    fun `长按面板是 kit 的 MessageActionSheet，按核心的判定渲染`() {
         assertTrue(
-            "菜单必须消费核心的 action_availability",
+            "面板必须消费核心的 action_availability",
             menuSource.contains("vm.actionAvailability(message)"),
         )
-        for (key in listOf("canRecall", "canEdit", "canPin", "canUnpin", "canCopy", "canSave")) {
-            assertTrue("菜单项必须按 $key 门控", menuSource.contains("can(\"$key\")"))
-        }
+        // 标准动作的门控、文案、分组在 kit 里（kit 有逐项单测）；app 把核心的答案原样交过去，
+        // 不能再自己拼一份动作列表或自己画菜单——那正是 Pin/Unpin 同列、别人的消息也能撤回的来路。
+        assertTrue("面板必须是 kit 的 MessageActionSheet", menuSource.contains("MessageActionSheet("))
+        assertTrue("核心的可用性原样交给 kit", menuSource.contains("availability = allowed"))
         assertFalse(
-            "Pin 与 Unpin 不能再出现在同一个静态列表里",
-            menuSource.contains("\"Pin\" to \"pin\""),
+            "不能再用 Material 下拉菜单自己画",
+            Regex("""import androidx\.compose\.material3\.DropdownMenu""").containsMatchIn(menuSource),
         )
-        // 只断言"某个 key 出现过"太弱：把某一处 can(...) 换成 if (true)，
-        // 另一处仍在，门禁照样报绿（实测过）。改成计数——少一处门控就红。
-        val gated = menuSource.split("can(\"").size - 1
-        assertTrue("菜单门控处数降到 $gated（基线 12），说明有菜单项被放开了", gated >= 12)
     }
 
     @Test
@@ -41,7 +38,7 @@ class MessageMenuGatingTest {
         for (hardcoded in listOf("\"Recall\"", "\"Delete for me\"", "\"Edit text\"", "\"Forward\"")) {
             assertFalse("菜单文案 $hardcoded 必须迁进 strings.xml", menuSource.contains(hardcoded))
         }
-        assertTrue(menuSource.contains("R.string.msg_action_recall"))
+        assertTrue(menuSource.contains("R.string.msg_action_delete_everyone"))
     }
 
     @Test
@@ -56,5 +53,22 @@ class MessageMenuGatingTest {
             Regex("""\"text\"\s+to\s+\"[^\"]*Edited from Android""").containsMatchIn(vmSource),
         )
         assertTrue(vmSource.contains("\"text\" to text"))
+    }
+
+    @Test
+    fun `回应与标记按核心的参数契约发请求`() {
+        val vmSource = File(
+            "src/main/kotlin/com/flare/im/app/features/messaging/MessagingViewModel.kt",
+        ).readText()
+        // add_reaction / remove_reaction 读 emoji；mark_by_message_id 要 markType + color，
+        // unmark_by_message_id 要 markType。字段不对时核心回 INVALID_PARAMETER，只进实验室日志，
+        // 界面上点了没反应——真机上长按回应、标记时实测过。
+        assertTrue(vmSource.contains("addReaction(req + (\"emoji\" to reaction))"))
+        assertTrue(vmSource.contains("removeReaction(req + (\"emoji\" to reaction))"))
+        assertFalse(Regex("""\"reaction\"\s+to\s+reaction""").containsMatchIn(vmSource))
+        assertTrue(
+            Regex("""markMessageById\(req \+ \("markType" to \w+\) \+ \("color" to \w+\)\)""").containsMatchIn(vmSource),
+        )
+        assertTrue(Regex("""unmarkMessageById\(req \+ \("markType" to \w+\)\)""").containsMatchIn(vmSource))
     }
 }
