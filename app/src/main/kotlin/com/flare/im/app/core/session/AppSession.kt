@@ -78,8 +78,10 @@ class AppSession {
 
         // 配置 SDK 托管的媒体磁盘缓存（LRU + 去重，核心已实现）：设根目录 + 上限，
         // 之后消息媒体经 media.cacheRemoteMedia 落到这里（离线可用、不重复下载）。
+        // 核心的参数名是 absolutePath（也认 path / root）。此前只传 root，旧核心读不到，
+        // 调用报错又被 runCatching 吞掉，缓存根目录从来没设上。
         runCatching {
-            sdk.media.setMediaCacheRoot(mapOf("root" to "$dataDir/media-cache"))
+            sdk.media.setMediaCacheRoot(mapOf("absolutePath" to "$dataDir/media-cache"))
             sdk.media.setMediaCacheMaxBytes(mapOf("maxBytes" to MEDIA_CACHE_MAX_BYTES))
         }
 
@@ -135,7 +137,7 @@ class AppSession {
         )
 
         runCatching {
-            sdk.media.setMediaCacheRoot(mapOf("root" to "$dataDir/media-cache"))
+            sdk.media.setMediaCacheRoot(mapOf("absolutePath" to "$dataDir/media-cache"))
             sdk.media.setMediaCacheMaxBytes(mapOf("maxBytes" to MEDIA_CACHE_MAX_BYTES))
         }
 

@@ -57,6 +57,7 @@ import com.flare.im.ui.FlareApplicationResponsiveMode
 import com.flare.im.ui.FlareApplicationWorkspacePane
 import com.flare.im.ui.FlareCapabilitySet
 import com.flare.im.ui.FlareIMAppConfiguration
+import com.flare.im.ui.FlareToastHost
 import com.flare.im.ui.IMAppKit
 import com.flare.im.ui.resolveApplicationResponsiveMode
 
@@ -114,16 +115,19 @@ fun FlareApp(store: FlareAppStore) {
     }
     FlareAppTheme(dark = dark) {
         val colors = FlareTheme.colors
-        Box(Modifier.fillMaxSize().background(colors.background)) {
-            when {
-                loggedIn -> WorkbenchScreen(store)
-                resumeAttempted -> LoginScreen(store)
-                else -> Unit
-            }
-            val busy by store.environment.isBusy.collectAsState()
-            if (busy) {
-                Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.08f)), Alignment.Center) {
-                    CircularProgressIndicator(color = colors.brand)
+        // The kit's feedback presenter: toasts (保存到本机 answers with one) and the danger confirm dialog.
+        FlareToastHost(modifier = Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().background(colors.background)) {
+                when {
+                    loggedIn -> WorkbenchScreen(store)
+                    resumeAttempted -> LoginScreen(store)
+                    else -> Unit
+                }
+                val busy by store.environment.isBusy.collectAsState()
+                if (busy) {
+                    Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.08f)), Alignment.Center) {
+                        CircularProgressIndicator(color = colors.brand)
+                    }
                 }
             }
         }

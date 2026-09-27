@@ -15,6 +15,7 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters += "arm64-v8a"
@@ -92,4 +93,8 @@ dependencies {
 
     testImplementation(kotlin("test"))
     testImplementation("junit:junit:4.13.2")
+
+    // 真机/模拟器用例：经真实核心（本地库，不连网）验证保存到下载位置、缓存统计。
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }

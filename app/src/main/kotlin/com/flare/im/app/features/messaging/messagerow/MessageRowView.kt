@@ -39,7 +39,9 @@ import com.flare.im.model.common.enums.MessageContentType
 import com.flare.im.app.core.designsystem.FlareTheme
 import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.app.core.domain.MessageBuildOp
+import com.flare.im.app.core.domain.PictureAccess
 import com.flare.im.app.features.messaging.MessagingViewModel
+import com.flare.im.app.features.messaging.media.rememberMediaSaver
 import com.flare.im.ui.FlareAudioContent
 import com.flare.im.ui.FlareCardContent
 import com.flare.im.ui.FlareConversationKind
@@ -82,6 +84,12 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
     var menu by remember { mutableStateOf(false) }
     var previewPath by remember { mutableStateOf<String?>(null) }
     var playbackPath by remember { mutableStateOf<String?>(null) }
+    var playbackIsVideo by remember { mutableStateOf(false) }
+    // 保存到本机 is the core's; the saver says 正在保存… / 已保存到 … / why not.
+    val saveMedia = rememberMediaSaver(vm)
+    // A picture is drawn from the core's cached copy once it has one (`media.resolve_access` with autoCache):
+    // seen pictures are not downloaded again. Only this answer ever becomes the kit's localPath.
+    val picture by produceState<PictureAccess?>(null, message.appStableId) { value = vm.resolvePicture(message) }
     val mediaScope = rememberCoroutineScope()
     var mediaJob by remember { mutableStateOf<Job?>(null) }
     val pending by vm.pendingMessageKeys.collectAsState()
@@ -96,7 +104,7 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
         isPending = message.appStableId in pending,
         isFailed = message.appStableId in failed,
     )
-    val presentation = message.toPresentation(deliveryState)
+    val presentation = message.toPresentation(deliveryState, picture)
 
     Column(Modifier.fillMaxWidth()) {
         Box {
@@ -113,29 +121,36 @@ fun MessageRow(message: AppMessage, outgoing: Boolean, vm: MessagingViewModel) {
                     onMediaAction = { _, media ->
                         mediaJob?.cancel()
                         if (media is FlareFileContent) {
-                            vm.saveToDownloads(message)
+                            // A file has nothing to preview here: its tap keeps it, in the download location.
+                            saveMedia(message)
                         } else if (media is FlareImageContent || media is FlareVideoContent || media is FlareAudioContent) {
                             mediaJob = mediaScope.launch {
                                 val path = vm.resolveMediaUrl(message)
                                 ensureActive()
                                 if (media is FlareImageContent) previewPath = path
-                                else playbackPath = path
+                                else {
+                                    playbackIsVideo = media is FlareVideoContent
+                                    playbackPath = path
+                                }
                             }
                         }
                     },
                     onResend = if (outgoing) ({ vm.retry(message) }) else null,
                 )
             }
-            MessageActionMenu(message, menu, clipboard, vm) { menu = it }
+            MessageActionMenu(message, menu, clipboard, vm, onSave = { saveMedia(message) }) { menu = it }
         }
 
         ReactionStrip(message, me, vm)
     }
-    previewPath?.let { p -> MediaPreviewDialog(p) { previewPath = null } }
-    playbackPath?.let { p -> PlatformPlaybackDialog(p) { playbackPath = null } }
+    // The preview's and the video player's download keys save the message through the core.
+    previewPath?.let { p -> MediaPreviewDialog(p, onDownload = { saveMedia(message) }) { previewPath = null } }
+    playbackPath?.let { p ->
+        PlatformPlaybackDialog(p, onDownload = if (playbackIsVideo) ({ saveMedia(message) }) else null) { playbackPath = null }
+    }
 }
 
-private fun AppMessage.toPresentation(deliveryState: MessageDeliveryState): FlareMessageData {
+private fun AppMessage.toPresentation(deliveryState: MessageDeliveryState, picture: PictureAccess? = null): FlareMessageData {
     val rawTimestamp = core.createdAt.takeIf { it > 0L } ?: core.clientCreatedAt
     val timestampMs = if (rawTimestamp in 1 until 10_000_000_000L) rawTimestamp * 1000 else rawTimestamp
     return FlareMessageData(
@@ -146,7 +161,7 @@ private fun AppMessage.toPresentation(deliveryState: MessageDeliveryState): Flar
         content = if (core.isRecalled) {
             FlareNotificationContent("Message recalled")
         } else {
-            core.content.toPresentationContent(previewText)
+            core.content.toPresentationContent(previewText, picture)
         },
         timeLabel = SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timestampMs)),
         status = when (deliveryState) {
@@ -160,7 +175,14 @@ private fun AppMessage.toPresentation(deliveryState: MessageDeliveryState): Flar
     )
 }
 
-private fun com.flare.im.model.entity.MessageContent?.toPresentationContent(fallback: String): FlareMessageContent {
+/**
+ * [picture] is the core's answer for this message's picture: its cached copy becomes the kit's `localPath` (next to
+ * the URL when there is one) and its signed URL stands in when the message carries no address of its own.
+ */
+internal fun com.flare.im.model.entity.MessageContent?.toPresentationContent(
+    fallback: String,
+    picture: PictureAccess? = null,
+): FlareMessageContent {
     val content = this ?: return FlarePlaceholderContent(fallback)
     val duration = (content.data["durationSec"] as? Number)?.toInt()
         ?: ((content.data["durationMs"] as? Number)?.toInt() ?: 0) / 1000
@@ -168,9 +190,11 @@ private fun com.flare.im.model.entity.MessageContent?.toPresentationContent(fall
         MessageContentType.TEXT, MessageContentType.RICH_TEXT, MessageContentType.QUOTE,
         MessageContentType.FORWARD, MessageContentType.THREAD ->
             FlareTextContent(content.str("text", "plainText", "body", "markdown") ?: fallback)
-        MessageContentType.IMAGE, MessageContentType.IMAGE_GROUP ->
-            imagePath(content)?.let { FlareImageContent(it, alt = content.str("description", "title")) }
-                ?: FlarePlaceholderContent(fallback)
+        MessageContentType.IMAGE, MessageContentType.IMAGE_GROUP -> {
+            val url = imagePath(content) ?: picture?.url
+            if (url == null && picture?.localPath == null) FlarePlaceholderContent(fallback)
+            else FlareImageContent(url.orEmpty(), alt = content.str("description", "title"), localPath = picture?.localPath)
+        }
         MessageContentType.VIDEO ->
             imagePath(content)?.let { FlareVideoContent(it, content.str("thumbnailUrl", "poster"), duration) }
                 ?: FlarePlaceholderContent(fallback)
@@ -236,6 +260,7 @@ private fun MessageActionMenu(
     expanded: Boolean,
     clipboard: androidx.compose.ui.platform.ClipboardManager,
     vm: MessagingViewModel,
+    onSave: () -> Unit,
     onExpandedChange: (Boolean) -> Unit,
 ) {
     var availability by remember(message.appStableId) { mutableStateOf<FlareMessageActionAvailability?>(null) }
@@ -289,7 +314,7 @@ private fun MessageActionMenu(
                     "forward" -> vm.buildAndSend(MessageBuildOp.CreateForward)
                     "copy" -> clipboard.setText(AnnotatedString(message.previewText))
                     "edit" -> { editing = true }
-                    "save" -> vm.saveToDownloads(message)
+                    "save" -> onSave()
                     "delete" -> vm.messageAction("deleteSelf", message)
                     // recall / pin / pinSelf / unpin / mark / editRich / deleteEveryone 都是同名的消息操作
                     else -> vm.messageAction(id, message)

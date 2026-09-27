@@ -13,6 +13,14 @@ import com.flare.im.app.core.session.AppSession
 import com.flare.im.app.core.domain.AppConversation
 import com.flare.im.app.core.domain.AppMessage
 import com.flare.im.app.core.domain.SdkModelMapper
+import com.flare.im.app.core.domain.PictureAccess
+import com.flare.im.app.core.domain.PictureAccessEntry
+import com.flare.im.app.core.domain.PictureAccessPolicy
+import com.flare.im.app.core.domain.SavedMedia
+import com.flare.im.app.core.domain.mediaSaveRequest
+import com.flare.im.app.core.domain.pictureAccessFrom
+import com.flare.im.app.core.domain.pictureFileIdOf
+import com.flare.im.app.core.domain.savedMediaFrom
 import com.flare.im.model.command.message.SendMessageRequest
 import com.flare.im.model.entity.Message
 import kotlinx.coroutines.CoroutineScope
@@ -270,6 +278,8 @@ class MessagingViewModel(
      * 解析媒体展示地址。失败兜底直链。
      */
     suspend fun resolveMediaUrl(message: AppMessage): String? {
+        // A picture: the core's cached copy when there is one, else its signed URL (the core caches it meanwhile).
+        resolvePicture(message)?.let { access -> (access.localPath ?: access.url)?.let { return it } }
         val data = message.core.content?.data ?: return null
         fun pick(keys: List<String>): String? {
             for (k in keys) (data[k] as? String)?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
@@ -300,25 +310,63 @@ class MessagingViewModel(
         return direct
     }
 
-    /** 把媒体存到系统下载目录（对应主流 IM「保存到相册/下载」）：走 SDK media.downloadFileToDownloads。 */
-    fun saveToDownloads(message: AppMessage) = scope.launch {
-        environment.run("media.downloadFileToDownloads") {
-            val sdk = client ?: error("Login before saving media")
-            val fileId = mediaFileId(message) ?: error("No downloadable media id")
-            val saved = sdk.media.downloadFileToDownloads(mapOf("fileId" to fileId))
-            environment.appendLab("media.download", "ok", saved.toString())
-        }
+    /** What each picture id resolved to last ([PictureAccessPolicy]). */
+    private val pictureAccess = java.util.concurrent.ConcurrentHashMap<String, PictureAccessEntry>()
+
+    /**
+     * Where [message]'s picture is drawn from — `media.resolve_access` with `autoCache`: the core's cached copy when
+     * there is one, else a signed URL while the core caches the picture in the background, so a picture seen once is
+     * not downloaded again. Null for a message without a stored picture id, or when the core cannot answer.
+     */
+    suspend fun resolvePicture(message: AppMessage): PictureAccess? {
+        val fileId = pictureFileIdOf(message.core.content) ?: return null
+        val sdk = client ?: return null
+        val now = System.currentTimeMillis()
+        val cached = pictureAccess[fileId]
+        if (cached != null && PictureAccessPolicy.reusable(
+                cached, now, localExists = cached.access.localPath?.let { java.io.File(it).isFile } ?: false,
+            )
+        ) return cached.access
+        val answer = runCatching { sdk.media.resolveMediaAccess(mapOf("fileId" to fileId, "autoCache" to true)) }
+            .onFailure { environment.appendLab("media.resolve_access", "error", it.message ?: "$it") }
+            .getOrNull()
+            ?.let(::pictureAccessFrom)
+            ?.takeIf { it.localPath != null || it.url != null }
+            ?: return cached?.access?.takeIf { it.localPath == null }
+        pictureAccess[fileId] = PictureAccessPolicy.next(cached, answer, now)
+        return answer
     }
 
-    private fun mediaFileId(message: AppMessage): String? {
-        val data = message.core.content?.data ?: return null
-        val keys = listOf("fileId", "file_id", "imageId", "audioId", "videoId", "mediaId", "media_id", "uuid", "id")
-        for (k in keys) (data[k] as? String)?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
-        (data["source"] as? Map<*, *>)?.let { src ->
-            for (k in keys) (src[k] as? String)?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+    /**
+     * Saves [message]'s media to the device's download location through the core (`media.download_to_user_directory`:
+     * the cached copy when there is one, else the attachment; a camera-style or the sender's file name). [onDone] gets
+     * the saved file or what went wrong — the screen says it; nothing is left only in the lab log.
+     */
+    fun saveMedia(message: AppMessage, onDone: (Result<SavedMedia>) -> Unit): Boolean {
+        val key = message.appStableId
+        // One save per message at a time: a second tap while it runs is not a second file.
+        if (!savingKeys.add(key)) return false
+        scope.launch {
+            val result = runCatching {
+                val sdk = client ?: error("Login before saving media")
+                // Only this account's own messages may name a file on this device as the source.
+                val outgoing = message.core.senderId.isNotEmpty() && message.core.senderId == session.currentUserId.value
+                val request = mediaSaveRequest(message.core.content, allowLocalSource = outgoing, localExists = { java.io.File(it).isFile })
+                    ?: throw NoSuchElementException("No saveable media in this message")
+                savedMediaFrom(sdk.media.downloadToUserDirectory(request))
+            }
+            savingKeys.remove(key)
+            result.onSuccess { environment.appendLab("media.download_to_user_directory", "ok", it.path) }
+                .onFailure { environment.appendLab("media.download_to_user_directory", "error", it.message ?: "$it") }
+            onDone(result)
         }
-        return null
+        return true
     }
+
+    private val savingKeys: MutableSet<String> = java.util.concurrent.ConcurrentHashMap.newKeySet()
+
+    /** Forget the resolved pictures (the cache was cleared): the next row asks the core again. */
+    fun forgetResolvedPictures() = pictureAccess.clear()
 
     /** 一条消息此刻可用的动作，由**核心**判定（规则在 `domain::message_actions`），交给 kit 的消息面板。 */
     suspend fun actionAvailability(message: AppMessage): FlareMessageActionAvailability {

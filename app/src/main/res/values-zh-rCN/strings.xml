@@ -141,4 +141,19 @@
     <string name="fmt_ordered">有序列表</string>
     <string name="choose_conversation">选择一个会话</string>
     <string name="choose_conversation_hint">从左侧列表打开会话，开始阅读消息。</string>
+
+    <!-- 保存到本机 / 下载位置 / 媒体缓存 -->
+    <string name="media_saving">正在保存…</string>
+    <string name="media_saved_to">已保存到 %1$s</string>
+    <string name="media_save_failed">没有保存成功，请重试</string>
+    <string name="settings_download_location">下载位置</string>
+    <string name="settings_download_location_change">更改位置</string>
+    <string name="settings_download_location_reset">恢复默认位置</string>
+    <string name="settings_download_location_unwritable">这个文件夹不能写入，请换一个</string>
+    <string name="settings_download_location_pick_failed">没能使用这个文件夹，请换一个</string>
+    <string name="settings_not_loaded">未读取</string>
+    <string name="settings_cache_size">图片与文件缓存</string>
+    <string name="settings_clear_cache_confirm">清除后，看过的图片需要重新下载。</string>
+    <string name="settings_clear_cache_failed">缓存没有清除，请重试</string>
+    <string name="settings_cache_cleared">缓存已清除</string>
 </resources>

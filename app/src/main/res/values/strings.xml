@@ -152,4 +152,19 @@
     <string name="fmt_ordered">Numbered list</string>
     <string name="choose_conversation">Choose a conversation</string>
     <string name="choose_conversation_hint">Open a conversation from the list to start reading.</string>
+
+    <!-- Save to device / download location / media cache -->
+    <string name="media_saving">Saving…</string>
+    <string name="media_saved_to">Saved to %1$s</string>
+    <string name="media_save_failed">Could not save. Try again.</string>
+    <string name="settings_download_location">Download location</string>
+    <string name="settings_download_location_change">Change location</string>
+    <string name="settings_download_location_reset">Use the default location</string>
+    <string name="settings_download_location_unwritable">This folder cannot be written to. Choose another one.</string>
+    <string name="settings_download_location_pick_failed">Could not use that folder. Try another one.</string>
+    <string name="settings_not_loaded">Not loaded</string>
+    <string name="settings_cache_size">Image and file cache</string>
+    <string name="settings_clear_cache_confirm">Pictures you have seen will be downloaded again.</string>
+    <string name="settings_clear_cache_failed">Could not clear the cache. Try again.</string>
+    <string name="settings_cache_cleared">Cache cleared</string>
 </resources>

@@ -37,7 +37,10 @@ class FlareAppStore(
     val sdkLabViewModel = SdkLabViewModel(session, environment, scope)
     val searchViewModel = SearchViewModel(session, environment, scope)
     val authViewModel = AuthViewModel(environment, scope)
-    val settingsViewModel = SettingsViewModel(session, environment, sdkLabViewModel, scope)
+    val settingsViewModel = SettingsViewModel(
+        session, environment, sdkLabViewModel, scope,
+        onCacheCleared = { messagingViewModel.forgetResolvedPictures() },
+    )
 
     init {
         // 反应式接线：core 推 ViewUpdate → 重投影本地视图（在 scope 上 re-fetch）。

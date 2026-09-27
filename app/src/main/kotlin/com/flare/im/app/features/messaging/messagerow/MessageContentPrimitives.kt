@@ -37,12 +37,14 @@ import java.io.File
 
 /** Platform image-loader slot for the public design-kit preview. */
 @Composable
-internal fun MediaPreviewDialog(path: String, onDismiss: () -> Unit) {
+internal fun MediaPreviewDialog(path: String, onDownload: (() -> Unit)? = null, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         ImagePreview(
             show = true,
             imageSrc = path,
             onClose = onDismiss,
+            // The kit's download key; the host saves (through the core).
+            onDownload = onDownload,
             image = {
                 FlareLocalImage(
                     path = path,
@@ -65,7 +67,7 @@ internal fun MediaPreviewDialog(path: String, onDismiss: () -> Unit) {
 
 /** Android owns the decoder/system transport controls, the kit owns the modal. */
 @Composable
-internal fun PlatformPlaybackDialog(path: String, onDismiss: () -> Unit) {
+internal fun PlatformPlaybackDialog(path: String, onDownload: (() -> Unit)? = null, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val player = remember { VideoView(context) }
     val controls = remember { MediaController(context) }
@@ -98,7 +100,7 @@ internal fun PlatformPlaybackDialog(path: String, onDismiss: () -> Unit) {
         }
     }
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        VideoPlayer(show = true, videoSrc = path, onClose = onDismiss, player = {
+        VideoPlayer(show = true, videoSrc = path, onClose = onDismiss, onDownload = onDownload, player = {
             Box(Modifier.fillMaxSize()) {
                 AndroidView(factory = { player }, modifier = Modifier.fillMaxSize())
                 if (!ready || failed) {
